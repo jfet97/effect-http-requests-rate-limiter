@@ -20,12 +20,12 @@ function makeRateLimiter(rahs: RetryAfterHeadersSchema, retryPolicy: RetryPolicy
   return pipe(
     Effect.makeSemaphore(1),
     Effect.map((sem) => (req: Http.request.ClientRequest) => Effect.gen(function*($){
-      // to enter the critical section we have to take the semaphore
-      yield* sem.take(1)
-      // we immediately release the semaphore to allow other requests to enter the critical section;
-      // the semaphore acts as an implicit queue for the requests that are waiting to be executed
-      // after a 429 has been detected
-      yield* sem.release(1)
+
+      // to enter the "critical section" we have to take the semaphore to then
+      // immediately release it to allow other requests to proceed;
+      // the semaphore acts as an implicit queue for the requests that are waiting
+      // to be handled after a 429 has been detected
+      yield* sem.withPermits(1)(Effect.void)
 
       return yield* $(
         req,
