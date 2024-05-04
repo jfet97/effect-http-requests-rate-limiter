@@ -36,17 +36,13 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
       concurrencyLimiter: Effect.fromNullable(config.maxConcurrentRequests)
         .pipe(Effect.flatMap(Effect.makeSemaphore), Effect.catchAll(_ => Effect.succeed(void 0)))
     }),
-    Effect.map(({ gate, concurrencyLimiter }) => (req: Http.request.ClientRequest) => Effect.gen(function*($){
-
-      // to enter the "critical section" we must scquire the sole permit and promptly
-      // release it to allow other requests to proceed;
-      // the semaphore acts as an implicit queue (gate) for the requests that are waiting
-      // to be handled after a 429 has been detected
-      yield* gate.withPermits(1)(Effect.void)
-
-      return yield* $(
-        req,
-        req => concurrencyLimiter ? concurrencyLimiter.withPermits(1)(req) : req,
+    Effect.map(({ gate, concurrencyLimiter }) => (req: Http.request.ClientRequest) => pipe(
+        // to enter the "critical section" we must scquire the sole permit and promptly
+        // release it to allow other requests to proceed;
+        // the semaphore acts as an implicit queue (gate) for the requests that are waiting
+        // to be handled after a 429 has been detected
+        gate.withPermits(1)(Effect.void),
+        Effect.zipRight(concurrencyLimiter ? concurrencyLimiter.withPermits(1)(req) : req),
         req => config.rateLimiter ? config.rateLimiter(req) : req,
         Effect.catchTag("ResponseError", err => Effect.gen(function* ($) {
           const headers = config.retryAfterHeadersSchema ? yield* $(
@@ -81,8 +77,7 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
           return yield* err
         })),
         config.retryPolicy ?? identity
-      )
-    }))
+    ))
   )
 }
 
