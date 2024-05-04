@@ -4,13 +4,19 @@ import * as S from "@effect/schema"
 import { NodeRuntime } from "@effect/platform-node";
 import { DevTools } from "@effect/experimental"
 
-interface RetryAfterHeadersSchema extends S.Schema.Schema<
+interface RateLimitHeadersSchema extends S.Schema.Schema<
   {
     /** milliseconds to wait before retrying */
-    readonly "retryAfter"?: number | undefined;
+    readonly "retryAfterMillis"?: number | undefined;
+    /** remaining remaining requests quota in the current window */
+    readonly "remainingRequestsQuota"?: number | undefined;
+    /** the time remaining in the current window */
+    readonly "resetAfterMillis"?: number | undefined;
   },
   Readonly<Record<string, string | undefined>>
 >{}
+
+interface RateLimitHeadersSchemaType extends S.Schema.Schema.Type<RateLimitHeadersSchema> {}
 
 interface RetryPolicy {
   <A, R>(_: Effect.Effect<A, Http.error.RequestError | Http.error.ResponseError, R>):
@@ -19,7 +25,7 @@ interface RetryPolicy {
 
 interface RequestsRateLimiterConfig {
   /** schema to parse the headers of the response to extract the retry-after header */
-  readonly retryAfterHeadersSchema?: RetryAfterHeadersSchema;
+  readonly rateLimitHeadersSchema?: RateLimitHeadersSchema;
   /** retry policy to apply when a 429 is detected */
   readonly retryPolicy?: RetryPolicy;
   /** rate limiter to only allow n starting requests */
@@ -30,6 +36,17 @@ interface RequestsRateLimiterConfig {
 
 // TODO: shoud it be scoped like the default one because I'm creating and using some semaphores?
 function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
+
+  const parseHeaders = (res: Http.response.ClientResponse) => {
+    return pipe(
+      config.rateLimitHeadersSchema,
+      Effect.fromNullable,
+      Effect.andThen(schema => Http.response.schemaHeaders(schema)(res)),
+      Effect.catchTag("NoSuchElementException", _ => Effect.succeed({})),
+      Effect.map(_ => _ satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)
+    )
+  }
+
   return pipe(
     Effect.all({
       gate: Effect.makeSemaphore(1),
@@ -48,33 +65,62 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         Effect.zipRight(gate.withPermits(1)(Effect.void), req),
         concurrencyLimiter?.withPermits(1) ?? identity,
         config.rateLimiter ?? identity,
-        Effect.catchTag("ResponseError", err => Effect.gen(function* ($) {
-          const headers = config.retryAfterHeadersSchema ? yield* $(
-            err.response,
-            Http.response.schemaHeaders(config.retryAfterHeadersSchema),
-            Effect.catchAll(_ => err) // ignore parse error, just return the original error
-          ) : {}
+        Effect.andThen(res => Effect.gen(function* ($){
+          const headers = yield* parseHeaders(res)
+              // ignore parse error, just return an empty object
+              .pipe(Effect.orElseSucceed(( )=> ({} satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)))
 
-          const { retryAfter } = headers
+          const { resetAfterMillis, remainingRequestsQuota } = headers
 
-          if(err.response.status === 429 && retryAfter) {
+          if(resetAfterMillis && typeof remainingRequestsQuota === "number" && remainingRequestsQuota === 0) {
+            // close the gate for the amount of time specified in the header
             const now = new Date().getTime()
 
-            // close the gate for the amount of time specified in the header
-            yield* gate.withPermits(1)(Effect.gen(function* () {
-              const elapsedTime = new Date().getTime() - now
+            yield* $(
+              Effect.gen(function* () {
+                const elapsedTime = new Date().getTime() - now
+                if(elapsedTime < resetAfterMillis) {
+                  const timeToWait = resetAfterMillis - elapsedTime
+                  yield* Effect.sleep(Duration.millis(timeToWait))
+                }
+              }),
+              gate.withPermits(1),
+              // do not block the current request, just fork a daemon to wait
+              Effect.forkDaemon
+            )
+          }
 
-              // close together requests might have got a 429,
-              // but we want to wait only once, or the minimum time possible
-              //
-              // older requests won't produce a delay because the elapsed time will be big enough;
-              // a small number of nearby requests will result in only a single delay, or perhaps a bit more, and this is good;
-              // many close requests will result in only a single delay too, that means that retrying after the delay will result in other 429s;
-              if(elapsedTime < retryAfter) {
-                const timeToWait = retryAfter - elapsedTime
-                yield* Effect.sleep(Duration.millis(timeToWait))
-              }
-            }))
+          return res
+        })),
+        Effect.catchTag("ResponseError", err => Effect.gen(function* ($) {
+          const headers = yield* parseHeaders(err.response)
+            // ignore parse error, just return the original error
+            .pipe(Effect.catchAll(_ => err))
+
+          const { retryAfterMillis } = headers
+
+          if(err.response.status === 429 && retryAfterMillis) {
+            // close the gate for the amount of time specified in the header
+            const now = new Date().getTime()
+
+            yield* $(
+              Effect.gen(function* () {
+                const elapsedTime = new Date().getTime() - now
+                // close together requests might have got a 429,
+                // but we want to wait only once, or the minimum time possible
+                //
+                // older requests won't produce a delay because the elapsed time will be big enough;
+                // a small number of nearby requests will result in only a single delay, or perhaps a bit more, and this is good;
+                // many close requests will result in only a single delay too, that means that retrying after the delay will result in other 429s;
+                if(elapsedTime < retryAfterMillis) {
+                  const timeToWait = retryAfterMillis - elapsedTime
+                  yield* Effect.sleep(Duration.millis(timeToWait))
+                }
+              }),
+              gate.withPermits(1),
+              // do not block the current request, just fork a daemon to wait
+              Effect.forkDaemon
+            )
           }
 
           // return the original error, so that the retry policy can be applied
@@ -93,8 +139,8 @@ export const logTime = Effect
 
 // test
 
-const RetryAfterHeadersSchema = S.Schema.Struct({
-  "retryAfter": S.Schema.transform(
+const RateLimitHeadersSchema = S.Schema.Struct({
+  "retryAfterMillis": S.Schema.transform(
     S.Schema.NumberFromString,
     S.Schema.Number,
     // from seconds to milliseconds
@@ -102,6 +148,19 @@ const RetryAfterHeadersSchema = S.Schema.Struct({
   ).pipe(
     S.Schema.optional(),
     S.Schema.fromKey("retry-after"),
+  ),
+  "remainingRequestsQuota": S.Schema.NumberFromString.pipe(
+    S.Schema.optional(),
+    S.Schema.fromKey("x-ratelimit-remaining"),
+  ),
+  "resetAfterMillis": S.Schema.transform(
+    S.Schema.NumberFromString,
+    S.Schema.Number,
+    // from seconds to milliseconds
+    { encode: (n) => n / 1000, decode: (n) => n * 1000 }
+  ).pipe(
+    S.Schema.optional(),
+    S.Schema.fromKey("x-ratelimit-reset"),
   ),
 })
 
@@ -124,7 +183,7 @@ const main = Effect.gen(function* ($) {
   const rateLimiter = yield* RateLimiterCustom
 
   const requestRateLimiter = yield* makeRequestsRateLimiter({
-    retryAfterHeadersSchema: RetryAfterHeadersSchema,
+    rateLimitHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: RetryPolicy,
     rateLimiter,
     maxConcurrentRequests: 3

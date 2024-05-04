@@ -5,7 +5,8 @@ const fastify = Fastify()
 // like marketstack
 fastify.register(import('@fastify/rate-limit'), {
   max: 5,
-  timeWindow: '5 seconds'
+  timeWindow: '5 seconds',
+  
 }).then(() => {
 
   fastify.get('/', async (request, reply) => {
