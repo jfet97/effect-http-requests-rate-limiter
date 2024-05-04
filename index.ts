@@ -41,8 +41,8 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         // release it to allow other requests to proceed;
         // the semaphore acts as an implicit queue (gate) for the requests that are waiting
         // to be handled after a 429 has been detected
-        gate.withPermits(1)(Effect.void),
-        Effect.zipRight(concurrencyLimiter ? concurrencyLimiter.withPermits(1)(req) : req),
+        Effect.zipRight(gate.withPermits(1)(Effect.void), req),
+        concurrencyLimiter?.withPermits(1) ?? identity,
         config.rateLimiter ?? identity,
         Effect.catchTag("ResponseError", err => Effect.gen(function* ($) {
           const headers = config.retryAfterHeadersSchema ? yield* $(
