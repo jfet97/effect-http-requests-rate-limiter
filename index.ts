@@ -43,7 +43,7 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         // to be handled after a 429 has been detected
         gate.withPermits(1)(Effect.void),
         Effect.zipRight(concurrencyLimiter ? concurrencyLimiter.withPermits(1)(req) : req),
-        req => config.rateLimiter?.(req) ?? req,
+        config.rateLimiter ?? identity,
         Effect.catchTag("ResponseError", err => Effect.gen(function* ($) {
           const headers = config.retryAfterHeadersSchema ? yield* $(
             err.response,
