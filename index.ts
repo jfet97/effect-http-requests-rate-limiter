@@ -41,12 +41,16 @@ function makeRateLimiter(rahs: RetryAfterHeadersSchema, retryPolicy: RetryPolicy
           if(err.response.status === 429 && retryAfter) {
             const now = new Date().getTime()
 
+            // block the semaphore for the amount of time specified in the header
             yield* sem.withPermits(1)(Effect.gen(function* () {
-              // block the semaphore for the amount of time specified in the header
               const elapsedTime = new Date().getTime() - now
 
               // close together requests might have got a 429,
               // but we want to wait only once, or the minimum time possible
+              //
+              // older requests won't produce a delay because the elapsed time will be big enough;
+              // a small number of nearby requests will result in only a single delay, or perhaps a bit more, and this is good;
+              // many close requests will result in only a single delay too, that means that retrying after the delay will result in other 429s;
               if(elapsedTime < retryAfter) {
                 const timeToWait = retryAfter - elapsedTime
                 yield* Console.log(`waiting ${timeToWait}ms`)
