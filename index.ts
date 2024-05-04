@@ -68,7 +68,7 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         Effect.andThen(res => Effect.gen(function* ($){
           const headers = yield* parseHeaders(res)
               // ignore parse error, just return an empty object
-              .pipe(Effect.orElseSucceed(( )=> ({} satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)))
+              .pipe(Effect.orElseSucceed(() => ({} satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)))
 
           const { resetAfterMillis, remainingRequestsQuota } = headers
 
