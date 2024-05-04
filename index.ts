@@ -1,5 +1,5 @@
 import * as Http from "@effect/platform/HttpClient";
-import { Effect, pipe, Duration, Schedule, Array, Console, Random, identity, RateLimiter } from "effect";
+import { Effect, pipe, Duration, Schedule, Array, Console, Random, identity, RateLimiter, Option } from "effect";
 import * as S from "@effect/schema"
 import { NodeRuntime } from "@effect/platform-node";
 import { DevTools } from "@effect/experimental"
@@ -33,8 +33,12 @@ function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
   return pipe(
     Effect.all({
       gate: Effect.makeSemaphore(1),
-      concurrencyLimiter: Effect.fromNullable(config.maxConcurrentRequests)
-        .pipe(Effect.flatMap(Effect.makeSemaphore), Effect.catchAll(_ => Effect.succeed(void 0)))
+      concurrencyLimiter: pipe(
+        config.maxConcurrentRequests,
+        Effect.fromNullable,
+        Effect.andThen(Effect.makeSemaphore),
+        Effect.orElseSucceed(() => void 0)
+      )
     }),
     Effect.map(({ gate, concurrencyLimiter }) => (req: Http.request.ClientRequest) => pipe(
         // to enter the "critical section" we must scquire the sole permit and promptly
