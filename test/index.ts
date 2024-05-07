@@ -63,8 +63,7 @@ const main = Effect.gen(function*($) {
   })
 
   const reqEffect = $(
-    req,
-    requestRateLimiter,
+    requestRateLimiter(req),
     Http.response.json,
     Effect.andThen((_) => Console.log(_)),
     Effect.andThen(logTime),

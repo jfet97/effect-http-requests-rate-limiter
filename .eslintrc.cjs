@@ -22,7 +22,7 @@ module.exports = {
     "project": [__dirname + '/tsconfig.json', __dirname + '/tsconfig.src.json', __dirname + '/tsconfig.test.json'],
   },
   extends: ["love", "plugin:@effect/recommended"],
-  plugins: [],
+  plugins: ["import"],
   rules: {
     "@typescript-eslint/explicit-function-return-type": "off",
     "@typescript-eslint/no-redeclare": "off",
