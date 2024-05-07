@@ -4,6 +4,10 @@
     "rootDir": "./test",
     "outDir": "./test/dist",
     "tsBuildInfoFile": "./test/dist/.tsbuildinfo",
+    "lib": [
+      "esnext",
+      "dom"
+    ],
   },
   "include": [
     "./test/**/*.ts",
