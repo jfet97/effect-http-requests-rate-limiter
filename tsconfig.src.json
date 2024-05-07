@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "esnext"
+    ],
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "esModuleInterop": true,
+    "baseUrl": "./",
+    "rootDir": "./src",
+    "moduleResolution": "Node16",
+    "outDir": "./dist"
+  },
+  "include": [
+    "./src/**/*.ts"
+  ],
+  "exclude": [
+    "./dist",
+    "*.test.ts",
+    "node_modules",
+    "build",
+    "lib",
+    "dist",
+    "**/*.d.ts.map",
+    ".git",
+    ".data",
+    "**/.*",
+    "**/*.tmp"
+  ],
+}

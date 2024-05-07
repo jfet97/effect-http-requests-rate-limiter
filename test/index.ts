@@ -3,7 +3,7 @@ import { Effect, pipe, Duration, Schedule, Array, Console, Random, RateLimiter }
 import * as S from "@effect/schema"
 import { NodeRuntime } from "@effect/platform-node";
 import { DevTools } from "@effect/experimental"
-import { makeRequestsRateLimiter, RetryPolicy } from "../src";
+import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js";
 
 // helper
 
