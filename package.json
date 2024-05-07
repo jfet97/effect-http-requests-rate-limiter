@@ -2,7 +2,14 @@
   "name": "effect-requests-rate-limiter",
   "private": false,
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jfet97/effect-requests-rate-limiter/"
+  },
+  "bugs": {
+    "url": "https://github.com/jfet97/effect-requests-rate-limiter/issues"
+  },
   "description": "A rate limiter for Effect requests which supports headers parsing",
   "engines": {
     "pnpm": ">= 9.0.4"
@@ -45,5 +52,14 @@
   "publishConfig": {
     "access": "public",
     "directory": "dist"
-  }
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": ["dist"]
 }
