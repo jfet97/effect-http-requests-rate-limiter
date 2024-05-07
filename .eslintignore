@@ -2,3 +2,4 @@
 **/*.jsx
 **/*.d.ts
 node_modules/
+.eslintrc.cjs

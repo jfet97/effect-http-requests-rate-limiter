@@ -1,9 +1,9 @@
-import * as Http from "@effect/platform/HttpClient";
-import { Effect, Duration, Schedule, Array, Console, Random, RateLimiter } from "effect";
-import * as S from "@effect/schema"
-import { NodeRuntime } from "@effect/platform-node";
 import { DevTools } from "@effect/experimental"
-import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js";
+import { NodeRuntime } from "@effect/platform-node"
+import * as Http from "@effect/platform/HttpClient"
+import * as S from "@effect/schema"
+import { Array, Console, Duration, Effect, Random, RateLimiter, Schedule } from "effect"
+import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
 
 // helper
 
@@ -21,11 +21,11 @@ const RateLimitHeadersSchema = S.Schema.Struct({
     { encode: (n) => n / 1000, decode: (n) => n * 1000 }
   ).pipe(
     S.Schema.optional(),
-    S.Schema.fromKey("retry-after"),
+    S.Schema.fromKey("retry-after")
   ),
   "remainingRequestsQuota": S.Schema.NumberFromString.pipe(
     S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-remaining"),
+    S.Schema.fromKey("x-ratelimit-remaining")
   ),
   "resetAfterMillis": S.Schema.transform(
     S.Schema.NumberFromString,
@@ -34,14 +34,14 @@ const RateLimitHeadersSchema = S.Schema.Struct({
     { encode: (n) => n / 1000, decode: (n) => n * 1000 }
   ).pipe(
     S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-reset"),
-  ),
+    S.Schema.fromKey("x-ratelimit-reset")
+  )
 })
 
-const RetryPolicy = Effect.retry({
+const MyRetryPolicy = Effect.retry({
   schedule: Schedule.jittered(Schedule.exponential("200 millis")),
   while: (err) => err._tag === "ResponseError" && err.response.status === 429,
-  times: 5,
+  times: 5
 }) satisfies RetryPolicy
 
 const RateLimiterCustom = RateLimiter.make({
@@ -52,13 +52,12 @@ const RateLimiterCustom = RateLimiter.make({
 
 const req = Http.request.get("http://localhost:3000")
 
-const main = Effect.gen(function* ($) {
-
+const main = Effect.gen(function*($) {
   const rateLimiter = yield* RateLimiterCustom
 
   const requestRateLimiter = yield* makeRequestsRateLimiter({
     rateLimitHeadersSchema: RateLimitHeadersSchema,
-    retryPolicy: RetryPolicy,
+    retryPolicy: MyRetryPolicy,
     rateLimiter,
     maxConcurrentRequests: 3
   })
@@ -67,23 +66,26 @@ const main = Effect.gen(function* ($) {
     req,
     requestRateLimiter,
     Http.response.json,
-    Effect.andThen(_ => Console.log(_)),
+    Effect.andThen((_) => Console.log(_)),
     Effect.andThen(logTime),
-    Effect.catchAll(_ => Console.error(_.error))
+    Effect.catchAll((_) => Console.error(_.error))
   )
 
-  yield* Effect.repeat(Effect.gen(function*($){
-    // launch 10 requests every 4 seconds with random starting point
-    const randomReq = $(
-      Random.nextRange(0, 2000),
-      Effect.andThen(Duration.millis),
-      Effect.andThen(Effect.sleep),
-      Effect.andThen(reqEffect)
-    )
+  yield* Effect.repeat(
+    Effect.gen(function*($) {
+      // launch 10 requests every 4 seconds with random starting point
+      const randomReq = $(
+        Random.nextRange(0, 2000),
+        Effect.andThen(Duration.millis),
+        Effect.andThen(Effect.sleep),
+        Effect.andThen(reqEffect)
+      )
 
-    yield* Effect.all(Array.makeBy(10, () => randomReq), { concurrency: "unbounded" })
-    yield* Effect.sleep(Duration.seconds(4))
-  }), Schedule.forever)
+      yield* Effect.all(Array.makeBy(10, () => randomReq), { concurrency: "unbounded" })
+      yield* Effect.sleep(Duration.seconds(4))
+    }),
+    Schedule.forever
+  )
 }).pipe(Effect.scoped)
 
 NodeRuntime.runMain(main.pipe(
