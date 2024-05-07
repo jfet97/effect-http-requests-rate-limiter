@@ -1,0 +1,35 @@
+{
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "lib": [
+      "ES2023"
+    ],
+    "target": "ES2022",
+    "inlineSourceMap": true,
+    "incremental": true,
+    "composite": true,
+    "declarationMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noImplicitAny": true,
+    "useUnknownInCatchVariables": true,
+    // This is not desirable, as it's useful in generators.
+    "noImplicitReturns": false,
+    "noImplicitThis": true,
+    "outDir": ".build/dist",
+    "resolveJsonModule": true,
+    "moduleResolution": "Node16",
+    "downlevelIteration": true,
+    "noErrorTruncation": true,
+    "forceConsistentCasingInFileNames": true,
+  },
+  "files": [],
+  "include": [],
+  "exclude": [
+    "**/node_modules",
+    "**/build",
+    "**/dist",
+    "**/.*"
+  ]
+}

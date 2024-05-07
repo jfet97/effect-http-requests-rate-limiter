@@ -1,14 +1,18 @@
 {
-  "name": "rate-limiting-handler",
+  "name": "effect-requests-rate-limiter",
+  "private": true,
+  "type": "module",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "engines": {
+    "pnpm": ">= 9.0.4"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "peerDependencies": {
     "@effect/platform": "^0.52.2",
     "@effect/schema": "^0.66.14",
