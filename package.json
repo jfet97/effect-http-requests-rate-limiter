@@ -1,6 +1,6 @@
 {
   "name": "effect-requests-rate-limiter",
-  "private": true,
+  "private": false,
   "type": "module",
   "version": "1.0.0",
   "description": "A rate limiter for Effect requests which supports headers parsing",
