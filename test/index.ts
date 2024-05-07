@@ -1,5 +1,5 @@
 import * as Http from "@effect/platform/HttpClient";
-import { Effect, pipe, Duration, Schedule, Array, Console, Random, RateLimiter } from "effect";
+import { Effect, Duration, Schedule, Array, Console, Random, RateLimiter } from "effect";
 import * as S from "@effect/schema"
 import { NodeRuntime } from "@effect/platform-node";
 import { DevTools } from "@effect/experimental"

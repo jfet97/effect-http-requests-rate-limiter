@@ -8,7 +8,7 @@ fastify.register(import('@fastify/rate-limit'), {
   timeWindow: '5 seconds',
 }).then(() => {
 
-  fastify.get('/', async (request, reply) => {
+  fastify.get('/', async (_, reply) => {
     console.log("received")
     // simulate some work
     await new Promise(resolve => setTimeout(resolve, 900))
