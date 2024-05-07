@@ -19,13 +19,14 @@
     "effect": "^3.1.2"
   },
   "devDependencies": {
-     "@effect/platform": "^0.52.2",
-    "@effect/schema": "^0.66.14",
-    "effect": "^3.1.2",
     "@effect/experimental": "^0.15.17",
-    "@fastify/rate-limit": "^9.1.0",
-    "fastify": "^4.26.2",
+    "@effect/platform": "^0.52.2",
     "@effect/platform-node": "^0.48.3",
+    "@effect/schema": "^0.66.14",
+    "@fastify/rate-limit": "^9.1.0",
+    "@tsconfig/strictest": "^2.0.5",
+    "effect": "^3.1.2",
+    "fastify": "^4.26.2",
     "tsx": "^4.9.0"
   }
 }
