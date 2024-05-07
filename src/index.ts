@@ -7,9 +7,9 @@ export interface RateLimitHeadersSchema extends
     {
       /** milliseconds to wait before retrying */
       readonly "retryAfterMillis"?: number | undefined
-      /** remaining remaining requests quota in the current window */
+      /** remaining requests quota in the current window */
       readonly "remainingRequestsQuota"?: number | undefined
-      /** the time remaining in the current window */
+      /** the milliseconds remaining in the current window */
       readonly "resetAfterMillis"?: number | undefined
     },
     Readonly<Record<string, string | undefined>>
