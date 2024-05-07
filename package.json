@@ -3,15 +3,19 @@
   "private": true,
   "type": "module",
   "version": "1.0.0",
-  "description": "",
+  "description": "A rate limiter for Effect requests which supports headers parsing",
   "engines": {
     "pnpm": ">= 9.0.4"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean": "rm -rf dist test/dist",
+    "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build",
+    "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint src test",
+    "autofix": "pnpm lint --fix"
   },
   "keywords": [],
-  "author": "",
+  "author": "Andrea Simone Costa",
   "license": "MIT",
   "peerDependencies": {
     "@effect/platform": "^0.52.2",
@@ -25,9 +29,19 @@
     "@effect/schema": "^0.66.14",
     "@fastify/rate-limit": "^9.1.0",
     "@tsconfig/strictest": "^2.0.5",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
     "effect": "^3.1.2",
+    "eslint": "^8.56.0",
+    "eslint-config-love": "^47.0.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0",
+    "eslint-plugin-promise": "^6.1.1",
     "fastify": "^4.26.2",
     "tsx": "^4.9.0",
     "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist"
   }
 }
