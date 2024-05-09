@@ -47,7 +47,7 @@ const MyRetryPolicy = Effect.retry({
 const RateLimiterCustom = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
-  interval: Duration.seconds(5)
+  interval: Duration.seconds(1)
 })
 
 const req = Http.request.get("http://localhost:3000")
@@ -72,16 +72,16 @@ const main = Effect.gen(function*($) {
 
   yield* Effect.repeat(
     Effect.gen(function*($) {
-      // launch 10 requests every 4 seconds with random starting point
+      // launch 12 requests every 2 seconds with random starting point
       const randomReq = $(
-        Random.nextRange(0, 2000),
+        Random.nextRange(0, 1000),
         Effect.andThen(Duration.millis),
         Effect.andThen(Effect.sleep),
         Effect.andThen(reqEffect)
       )
 
-      yield* Effect.all(Array.makeBy(10, () => randomReq), { concurrency: "unbounded" })
-      yield* Effect.sleep(Duration.seconds(4))
+      yield* Effect.all(Array.makeBy(12, () => randomReq), { concurrency: "unbounded" })
+      yield* Effect.sleep(Duration.seconds(2))
     }),
     Schedule.forever
   )

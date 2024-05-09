@@ -1,6 +1,6 @@
 import * as Http from "@effect/platform/HttpClient"
 import type * as S from "@effect/schema"
-import { Duration, Effect, identity, pipe, type RateLimiter } from "effect"
+import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter } from "effect"
 
 export interface RateLimitHeadersSchema extends
   S.Schema.Schema<
@@ -44,17 +44,60 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
     )
   }
 
-  return pipe(
-    Effect.all({
+  return Effect.gen(function*($) {
+    const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
       gate: Effect.makeSemaphore(1),
       concurrencyLimiter: pipe(
         config.maxConcurrentRequests,
         Effect.fromNullable,
         Effect.andThen(Effect.makeSemaphore),
         Effect.orElseSucceed(() => void 0)
-      )
-    }),
-    Effect.map(({ gate, concurrencyLimiter }) => (req: Http.request.ClientRequest) =>
+      ),
+      pubsub: PubSub.unbounded<{ toWait: number; now: Date }>()
+      // fromQueue
+    }, { concurrency: 3 })
+
+    // close the gate after a 429 has been detected, or after a quota = 0 has been detected
+    yield* $(
+      pubsub,
+      PubSub.subscribe,
+      Effect.andThen((subscription) =>
+        pipe(
+          subscription,
+          Queue.take,
+          Effect.andThen(({ now, toWait }) => {
+            // close together requests might have got a 429,
+            // but we want to wait only once, or the minimum time possible:
+            // 1. older requests won't produce a delay because the elapsed time will be big enough;
+            // 2. a small number of nearby requests will result in only a single delay, or perhaps a bit more, and this is good;
+            // 3. many close requests will result in only a single delay too, that means that retrying after the delay will result in other 429s;
+            //
+            // even after a quota 0 we want to wait for the minimum time possible
+            const actualNow = new Date()
+            const elapsedTime = actualNow.getTime() - now.getTime()
+            return elapsedTime < toWait
+              ? pipe(
+                Console.log(`Closing gate for ${toWait - elapsedTime}ms at ${actualNow.toISOString()}`),
+                Effect.andThen(Effect.sleep(Duration.millis(toWait - elapsedTime))),
+                gate.withPermits(1),
+                Effect.andThen(Effect.suspend(() => Console.log(`Gate is now open at ${new Date().toISOString()}`)))
+              )
+              : Effect.suspend(() =>
+                Console.log(
+                  `Suggested wait of ${toWait}ms from ${now.toISOString()} has already passed at ${
+                    new Date().toISOString()
+                  }`
+                )
+              )
+          }),
+          Effect.forever
+        )
+      ),
+      Effect.forkScoped,
+      Effect.interruptible
+    )
+
+    return (req: Http.request.ClientRequest) =>
       pipe(
         // to enter the "critical section" we must scquire the sole permit and promptly
         // release it to allow other requests to proceed;
@@ -81,20 +124,16 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
               remainingRequestsQuota === 0
             ) {
               // close the gate for the amount of time specified in the header
-              const now = new Date().getTime()
+              const now = new Date()
 
               yield* $(
-                Effect.gen(function*() {
-                  // wait the minimum time possible
-                  const elapsedTime = new Date().getTime() - now
-                  if (elapsedTime < resetAfterMillis) {
-                    const timeToWait = resetAfterMillis - elapsedTime
-                    yield* Effect.sleep(Duration.millis(timeToWait))
-                  }
-                }),
-                gate.withPermits(1),
-                // do not block the current request, just fork a daemon to wait
-                Effect.forkDaemon
+                pubsub,
+                PubSub.publish({ toWait: resetAfterMillis, now }),
+                Effect.andThen(
+                  Console.info(
+                    `End of quota detected at ${now.toISOString()}, suggesting wait of ${resetAfterMillis}ms`
+                  )
+                )
               )
             }
 
@@ -114,25 +153,16 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
               typeof retryAfterMillis === "number"
             ) {
               // close the gate for the amount of time specified in the header
-              const now = new Date().getTime()
+              const now = new Date()
 
               yield* $(
-                Effect.gen(function*() {
-                  const elapsedTime = new Date().getTime() - now
-                  // close together requests might have got a 429,
-                  // but we want to wait only once, or the minimum time possible
-                  //
-                  // older requests won't produce a delay because the elapsed time will be big enough;
-                  // a small number of nearby requests will result in only a single delay, or perhaps a bit more, and this is good;
-                  // many close requests will result in only a single delay too, that means that retrying after the delay will result in other 429s;
-                  if (elapsedTime < retryAfterMillis) {
-                    const timeToWait = retryAfterMillis - elapsedTime
-                    yield* Effect.sleep(Duration.millis(timeToWait))
-                  }
-                }),
-                gate.withPermits(1),
-                // do not block the current request, just fork a daemon to wait
-                Effect.forkDaemon
+                pubsub,
+                PubSub.publish({ toWait: retryAfterMillis, now }),
+                Effect.andThen(
+                  Console.info(
+                    `429 detected at ${now.toISOString()}, suggesting wait of ${retryAfterMillis}ms`
+                  )
+                )
               )
             }
 
@@ -141,6 +171,5 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
           })),
         config.retryPolicy ?? identity
       )
-    )
-  )
+  })
 }
