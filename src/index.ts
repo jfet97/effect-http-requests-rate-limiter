@@ -77,13 +77,13 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
             const elapsedTime = actualNow.getTime() - now.getTime()
             return elapsedTime < toWait
               ? pipe(
-                Console.log(`Closing gate for ${toWait - elapsedTime}ms at ${actualNow.toISOString()}`),
+                Console.info(`Closing gate for ${toWait - elapsedTime}ms at ${actualNow.toISOString()}`),
                 Effect.andThen(Effect.sleep(Duration.millis(toWait - elapsedTime))),
                 gate.withPermits(1),
-                Effect.andThen(Effect.suspend(() => Console.log(`Gate is now open at ${new Date().toISOString()}`)))
+                Effect.andThen(Effect.suspend(() => Console.info(`Gate is now open at ${new Date().toISOString()}`)))
               )
               : Effect.suspend(() =>
-                Console.log(
+                Console.info(
                   `Suggested wait of ${toWait}ms from ${now.toISOString()} has already passed at ${
                     new Date().toISOString()
                   }`
