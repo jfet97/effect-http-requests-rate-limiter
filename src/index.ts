@@ -1,6 +1,7 @@
 import * as Http from "@effect/platform/HttpClient"
 import type * as S from "@effect/schema"
 import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter } from "effect"
+import { LogMessages } from "./logs.js"
 
 export interface RateLimitHeadersSchema extends
   S.Schema.Schema<
@@ -54,7 +55,6 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         Effect.orElseSucceed(() => void 0)
       ),
       pubsub: PubSub.unbounded<{ toWait: number; now: Date }>()
-      // fromQueue
     }, { concurrency: 3 })
 
     // close the gate after a 429 has been detected, or after a quota = 0 has been detected
@@ -77,18 +77,12 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
             const elapsedTime = actualNow.getTime() - now.getTime()
             return elapsedTime < toWait
               ? pipe(
-                Console.info(`Closing gate for ${toWait - elapsedTime}ms at ${actualNow.toISOString()}`),
+                Console.info(LogMessages.closingGate(toWait - elapsedTime, actualNow)),
                 Effect.andThen(Effect.sleep(Duration.millis(toWait - elapsedTime))),
                 gate.withPermits(1),
-                Effect.andThen(Effect.suspend(() => Console.info(`Gate is now open at ${new Date().toISOString()}`)))
+                Effect.andThen(Effect.suspend(() => Console.info(LogMessages.gateIsOpen())))
               )
-              : Effect.suspend(() =>
-                Console.info(
-                  `Suggested wait of ${toWait}ms from ${now.toISOString()} has already passed at ${
-                    new Date().toISOString()
-                  }`
-                )
-              )
+              : Effect.suspend(() => Console.info(LogMessages.ignoredSuggestedWait(toWait, now)))
           }),
           Effect.forever
         )
@@ -127,13 +121,8 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
               const now = new Date()
 
               yield* $(
-                pubsub,
-                PubSub.publish({ toWait: resetAfterMillis, now }),
-                Effect.andThen(
-                  Console.info(
-                    `End of quota detected at ${now.toISOString()}, suggesting wait of ${resetAfterMillis}ms`
-                  )
-                )
+                PubSub.publish(pubsub, { toWait: resetAfterMillis, now }),
+                Effect.andThen(Console.info(LogMessages.suggestWait(resetAfterMillis, now, "eoq")))
               )
             }
 
@@ -156,13 +145,8 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
               const now = new Date()
 
               yield* $(
-                pubsub,
-                PubSub.publish({ toWait: retryAfterMillis, now }),
-                Effect.andThen(
-                  Console.info(
-                    `429 detected at ${now.toISOString()}, suggesting wait of ${retryAfterMillis}ms`
-                  )
-                )
+                PubSub.publish(pubsub, { toWait: retryAfterMillis, now }),
+                Effect.andThen(Console.info(LogMessages.suggestWait(retryAfterMillis, now, "429")))
               )
             }
 

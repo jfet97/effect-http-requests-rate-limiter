@@ -2,7 +2,7 @@
   "name": "effect-requests-rate-limiter",
   "private": false,
   "type": "module",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "repository": {
     "type": "git",
     "url": "https://github.com/jfet97/effect-requests-rate-limiter/"
