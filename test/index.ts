@@ -44,7 +44,7 @@ const MyRetryPolicy = Effect.retry({
   times: 5
 }) satisfies RetryPolicy
 
-const RateLimiterCustom = RateLimiter.make({
+const MyRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
   interval: Duration.seconds(3)
@@ -53,9 +53,9 @@ const RateLimiterCustom = RateLimiter.make({
 const req = Http.request.get("http://localhost:3000")
 
 const main = Effect.gen(function*($) {
-  const rateLimiter = yield* RateLimiterCustom
+  const rateLimiter = yield* MyRateLimiter
 
-  const requestRateLimiter = yield* makeRequestsRateLimiter({
+  const requestsRateLimiter = yield* makeRequestsRateLimiter({
     rateLimitHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: MyRetryPolicy,
     rateLimiter,
@@ -63,7 +63,7 @@ const main = Effect.gen(function*($) {
   })
 
   const reqEffect = $(
-    requestRateLimiter(req),
+    requestsRateLimiter(req),
     Http.response.json,
     Effect.andThen((_) => Console.log(_)),
     Effect.andThen(logTime),

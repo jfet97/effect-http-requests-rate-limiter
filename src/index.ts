@@ -153,7 +153,17 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
             // return the original error, so that the retry policy can be applied
             return yield* err
           })),
-        config.retryPolicy ?? identity
+        config.retryPolicy ?? identity,
+        (w) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          Object.setPrototypeOf(w, Object.getPrototypeOf(req))
+          ;(w as any).method = req.method
+          ;(w as any).url = req.url
+          ;(w as any).urlParams = req.urlParams
+          ;(w as any).headers = req.headers
+          ;(w as any).body = req.body
+          return w as Http.request.ClientRequest
+        }
       )
   })
 }
