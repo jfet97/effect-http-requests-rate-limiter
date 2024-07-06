@@ -1,6 +1,6 @@
 import { DevTools } from "@effect/experimental"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { NodeRuntime } from "@effect/platform-node"
-import * as Http from "@effect/platform/HttpClient"
 import * as S from "@effect/schema"
 import { Array, Console, Duration, Effect, Random, RateLimiter, Schedule } from "effect"
 import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
@@ -50,7 +50,7 @@ const MyRateLimiter = RateLimiter.make({
   interval: Duration.seconds(3)
 })
 
-const req = Http.request.get("http://localhost:3000")
+const req = HttpClientRequest.get("http://localhost:3000")
 
 const main = Effect.gen(function*($) {
   const rateLimiter = yield* MyRateLimiter
@@ -64,7 +64,7 @@ const main = Effect.gen(function*($) {
 
   const reqEffect = $(
     requestsRateLimiter(req),
-    Http.response.json,
+    HttpClientResponse.json,
     Effect.andThen((_) => Console.log(_)),
     Effect.andThen(logTime),
     Effect.catchAll((_) => Console.error(_.error))
@@ -89,6 +89,6 @@ const main = Effect.gen(function*($) {
 
 NodeRuntime.runMain(main.pipe(
   // obs: fetchOk must be used so that non 2xx responses are considered errors
-  Effect.provideService(Http.client.Client, Http.client.fetchOk),
+  Effect.provideService(HttpClient.HttpClient, HttpClient.fetchOk),
   Effect.provide(DevTools.layer())
 ))

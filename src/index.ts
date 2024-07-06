@@ -1,4 +1,4 @@
-import * as Http from "@effect/platform/HttpClient"
+import { type HttpClientError, type HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import type * as S from "@effect/schema"
 import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter } from "effect"
 import { LogMessages } from "./logs.js"
@@ -20,8 +20,8 @@ export interface RateLimitHeadersSchema extends
 export interface RateLimitHeadersSchemaType extends S.Schema.Schema.Type<RateLimitHeadersSchema> {}
 
 export type RetryPolicy = <A, R>(
-  _: Effect.Effect<A, Http.error.RequestError | Http.error.ResponseError, R>
-) => Effect.Effect<A, Http.error.RequestError | Http.error.ResponseError, R>
+  _: Effect.Effect<A, HttpClientError.RequestError | HttpClientError.ResponseError, R>
+) => Effect.Effect<A, HttpClientError.RequestError | HttpClientError.ResponseError, R>
 
 export interface RequestsRateLimiterConfig {
   /** schema to parse the headers of the response to extract the retry-after header */
@@ -35,11 +35,11 @@ export interface RequestsRateLimiterConfig {
 }
 
 export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
-  const parseHeaders = (res: Http.response.ClientResponse) => {
+  const parseHeaders = (res: HttpClientResponse.HttpClientResponse) => {
     return pipe(
       config.rateLimitHeadersSchema,
       Effect.fromNullable,
-      Effect.andThen((schema) => Http.response.schemaHeaders(schema)(res)),
+      Effect.andThen((schema) => HttpClientResponse.schemaHeaders(schema)(res)),
       Effect.catchTag("NoSuchElementException", (_) => Effect.succeed({})),
       Effect.map((_) => _ satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)
     )
@@ -91,7 +91,7 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
       Effect.interruptible
     )
 
-    return (req: Http.request.ClientRequest) =>
+    return (req: HttpClientRequest.HttpClientRequest) =>
       pipe(
         // to enter the "critical section" we must scquire the sole permit and promptly
         // release it to allow other requests to proceed;
@@ -160,9 +160,10 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
           ;(w as any).method = req.method
           ;(w as any).url = req.url
           ;(w as any).urlParams = req.urlParams
+          ;(w as any).hash = req.hash
           ;(w as any).headers = req.headers
           ;(w as any).body = req.body
-          return w as Http.request.ClientRequest
+          return w as HttpClientRequest.HttpClientRequest
         }
       )
   })
