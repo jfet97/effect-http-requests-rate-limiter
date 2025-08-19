@@ -147,11 +147,16 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 ## How It Works
 
-1. Requests pass through the rate limiter gate
-2. Response headers parsed for rate limit info
-3. Gate closes on 429/quota exhaustion, reopens after delay
-4. Smart delays optimize concurrent request timing
-5. Failed requests retry per configured policy
+1. **Non-2xx Error Enforcement**: All non-2xx HTTP responses are automatically treated as Effect errors via `HttpClient.filterStatusOk`
+2. Requests pass through the rate limiter gate
+3. Response headers parsed for rate limit info
+4. Gate closes on 429/quota exhaustion, reopens after delay
+5. Smart delays optimize concurrent request timing
+6. Failed requests retry per configured policy
+
+## Important Notes
+
+⚠️ **Non-2xx Response Handling**: This library requires non-2xx HTTP responses to be treated as Effect errors for proper retry and gate control functionality. This is enforced internally using `HttpClient.filterStatusOk`, so 4xx/5xx responses will automatically flow through Effect's error channel.
 
 ## Peer Dependencies
 

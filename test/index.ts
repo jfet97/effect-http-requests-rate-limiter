@@ -1,5 +1,5 @@
 import { DevTools } from "@effect/experimental"
-import { HttpClient, HttpClientRequest } from "@effect/platform"
+import { HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 
 import { Array, Duration, Effect, Layer, pipe, Random, RateLimiter, Schedule, Schema as S } from "effect"
@@ -86,10 +86,7 @@ const main = Effect.gen(function*() {
 
 NodeRuntime.runMain(main.pipe(
   Effect.provide(Layer.merge(
-    Layer.effect(
-      HttpClient.HttpClient,
-      HttpClient.HttpClient.pipe(Effect.map(HttpClient.filterStatusOk))
-    ).pipe(Layer.provide(NodeHttpClient.layer)),
+    NodeHttpClient.layer,
     DevTools.layer()
   ))
 ))
