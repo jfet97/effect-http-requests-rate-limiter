@@ -56,6 +56,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Run tests
         run: pnpm test:run
 
@@ -96,6 +99,9 @@ jobs:
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Lint (repeat to ensure build sees generated artifacts consistency)
+        run: pnpm lint
 
       - name: Build package
         run: pnpm build
