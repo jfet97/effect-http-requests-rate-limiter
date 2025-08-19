@@ -1,9 +1,21 @@
 import love from "eslint-config-love"
 import effectPlugin from "@effect/eslint-plugin"
+import espree from "espree"
 
 export default [
   {
     ignores: ["dist/**", "build/**", "docs/**", "**/*.md"]
+  },
+  // Override specifico: lintare questo file come semplice JS (Espree), senza type-aware parser
+  {
+    files: ["eslint.config.js"],
+    languageOptions: {
+      parser: espree,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module"
+      }
+    }
   },
   love,
   {
