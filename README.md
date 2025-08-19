@@ -132,7 +132,7 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 ```ts
 {
   /**
-   * Retry delay after a 429 (relative duration to wait before retrying)
+   * Retry delay after a 429 (relative duration to wait before retrying).
    */
   readonly "retryAfter"?: Duration.Duration | undefined
   /**

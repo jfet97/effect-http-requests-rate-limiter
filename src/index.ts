@@ -6,7 +6,7 @@ export interface HeadersSchema extends
   S.Schema<
     {
       /**
-       * Retry delay after a 429 (relative duration to wait before retrying)
+       * Retry delay after a 429 (relative duration to wait before retrying).
        */
       readonly "retryAfter"?: Duration.Duration | undefined
       /**
