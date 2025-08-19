@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.2.1
+
+### Patch Changes
+
+- [`976aad5`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/976aad52c695e2eafe49becb39dbdad5b7efb95b) Thanks [@jfet97](https://github.com/jfet97)! - force the schema headers to be present
+
 ## 0.2.0
 
 ### Minor Changes
