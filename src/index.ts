@@ -132,8 +132,8 @@ export const make = Effect.fn(
           Effect.forever
         )
       ),
-      Effect.forkScoped,
       Effect.interruptible,
+      Effect.forkScoped,
       Effect.withSpan("HttpRequestsRateLimiter.gate.controllerFiber")
     )
 
