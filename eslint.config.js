@@ -1,9 +1,21 @@
 import love from "eslint-config-love"
 import effectPlugin from "@effect/eslint-plugin"
+import * as espree from "espree"
 
 export default [
   {
-    ignores: ["dist/**", "build/**", "docs/**", "**/*.md"]
+  ignores: ["dist/**", "build/**", "docs/**", "**/*.md", "eslint.config.js"]
+  },
+  // Specific override: lint this file as plain JS (Espree), without the type-aware parser
+  {
+    files: ["eslint.config.js"],
+    languageOptions: {
+      parser: espree,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module"
+      }
+    }
   },
   love,
   {
@@ -22,6 +34,7 @@ export default [
       "@typescript-eslint/no-redeclare": "off",
       "@typescript-eslint/no-magic-numbers": "off",
       "@typescript-eslint/prefer-function-type": "off",
+      "@typescript-eslint/strict-boolean-expressions": "off",
       "no-void": "off",
       "max-nested-callbacks": "off",
       "@effect/dprint": [

@@ -1,11 +1,15 @@
 {
-  "extends": "./tsconfig.base.json",
+  // Solution tsconfig: includes buildable library + example + test (full editor project graph)
+  "files": [],
   "references": [
     {
       "path": "./tsconfig.src.json"
     },
     {
+      "path": "./tsconfig.example.json"
+    },
+    {
       "path": "./tsconfig.test.json"
     }
-  ],
+  ]
 }

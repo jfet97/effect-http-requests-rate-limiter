@@ -15,16 +15,19 @@
     "pnpm": ">= 10.14.0"
   },
   "scripts": {
-    "clean": "rm -rf dist test/dist",
-    "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build",
-    "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
-    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./test/**/*.ts",
+    "clean": "rm -rf dist example/dist",
+    "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build tsconfig.src.json",
+    "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --project tsconfig.src.json --noEmit",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./example/**/*.ts ./test/**/*.ts",
     "autofix": "pnpm lint --fix",
     "changeset": "changeset",
     "version-packages": "pnpm changeset version && pnpm build",
     "release": "pnpm build && changeset publish",
     "ci:version": "pnpm changeset version && pnpm build",
-    "ci:publish": "pnpm release"
+    "ci:publish": "pnpm release",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "keywords": [],
   "author": "Andrea Simone Costa",
@@ -34,15 +37,19 @@
     "effect": "^3.17.7"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.6",
     "@effect/eslint-plugin": "^0.3.2",
     "@effect/experimental": "^0.54.6",
     "@effect/language-service": "^0.35.2",
     "@effect/platform": "^0.90.4",
     "@effect/platform-node": "^0.96.0",
+    "@effect/vitest": "^0.13.5",
     "@fastify/rate-limit": "^10.3.0",
     "@tsconfig/strictest": "^2.0.5",
-    "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "@vitest/ui": "^2.0.0",
     "effect": "^3.17.7",
     "eslint": "^9.33.0",
     "eslint-config-love": "^121.0.0",
@@ -50,11 +57,11 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-n": "^17.21.3",
     "eslint-plugin-promise": "^7.2.1",
+    "espree": "^10.4.0",
     "fastify": "^5.5.0",
-    "@changesets/cli": "^2.29.6",
-    "@changesets/changelog-github": "^0.5.1",
     "tsx": "^4.20.4",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^2.0.0"
   },
   "publishConfig": {
     "access": "public"

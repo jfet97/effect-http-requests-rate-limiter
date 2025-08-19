@@ -1,31 +1,30 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./test",
-    "outDir": "./test/dist",
-    "tsBuildInfoFile": "./test/dist/.tsbuildinfo",
+    // Only type-check tests; keep composite for integration with the project graph
+    "noEmit": true,
+    "composite": true,
+    // Avoid requests for already built output; the language service will use the sources from the referenced project
+    "disableSourceOfProjectReferenceRedirect": false,
     "lib": [
       "ES2023"
     ],
     "types": [
-      "node"
-    ]
+      "node",
+      "vitest/globals"
+    ],
+    "allowImportingTsExtensions": true,
+    // Keep skipLibCheck for speed (remove it if you want maximum strictness)
+    "skipLibCheck": true,
+    "moduleResolution": "Node16"
   },
   "include": [
-    "./test/**/*.ts",
+    "./test/**/*.ts"
   ],
   "exclude": [
     "./dist",
-    "./test/dist",
     "node_modules",
-    "build",
-    "lib",
-    "dist",
-    "**/*.d.ts.map",
-    ".git",
-    ".data",
-    "**/.*",
-    "**/*.tmp"
+    "**/*.d.ts.map"
   ],
   "references": [
     {

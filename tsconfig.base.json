@@ -7,9 +7,7 @@
     ],
     "target": "ES2022",
     "inlineSourceMap": true,
-    "incremental": true,
-    "composite": true,
-    "declarationMap": true,
+    // Keep base generic; build settings (incremental/composite/declarationMap) only in buildable projects
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noImplicitAny": true,

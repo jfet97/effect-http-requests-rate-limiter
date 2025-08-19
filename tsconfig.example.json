@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // composite true to allow the project reference
+    "composite": true,
+    "tsBuildInfoFile": "./example/.tsbuildinfo",
+    "lib": [
+      "ES2023"
+    ],
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "./example/**/*.ts"
+  ],
+  "exclude": [
+    "./example/dist",
+    "node_modules",
+    "./dist",
+    "node_modules",
+    "**/*.d.ts.map"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.src.json"
+    }
+  ]
+}
