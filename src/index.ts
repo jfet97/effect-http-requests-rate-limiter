@@ -142,8 +142,12 @@ export const make = Effect.fn(
           "ParseError",
           (error) => Effect.logError(`Failed to parse rate limit headers: ${error.message}`)
         ),
-        // Swallow errors and return an empty object if headers are not present
-        // to not block requests with additional details
+        /*
+          Header parsing is best-effort: if headers are missing or invalid we fall back to
+          an empty object. We already log the parse error above for observability. This
+          guarantees rate-limit hints never cause the underlying request to fail; only the
+          retry policy / concurrency mechanisms continue to apply.
+        */
         Effect.orElseSucceed(() => ({})),
         Effect.map((_) =>
           _ satisfies S.Schema.Type<HeadersSchema> as S.Schema.Type<
