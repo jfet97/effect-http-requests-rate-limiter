@@ -145,7 +145,14 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 }
 ```
 
-**All fields optional** - without headers, only retry policy, Effect rate limiter, and concurrency limits apply.
+**All fields are optional** - without headers, only retry policy, Effect rate limiter, and concurrency limits apply.
+
+Why optional? Rate‑limit headers are often:
+1. Missing or intermittently stripped by proxies / CDNs
+2. Present only on certain statuses (e.g. 200 vs 429) or after a threshold
+3. Inconsistently documented / unreliable across API versions
+
+Instead of failing parsing the schema treats every field as a best‑effort hint. The limiter then checks presence manually and only applies the gate / wait logic when the decoded value exists. This keeps the system resilient.
 
 - **`retryAfter`**: Wait time after 429 responses
 - **`quotaRemainingRequests` + `quotaResetsAfter`**: Proactive quota management - gate closes when quota = 0
