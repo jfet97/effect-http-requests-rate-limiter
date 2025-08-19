@@ -101,7 +101,7 @@ interface Config {
   /** HTTP client to use for making requests (required) */
   httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
-  rateLimiterHeadersSchema?: HeadersSchema
+  rateLimiterHeadersSchema: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
   retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
