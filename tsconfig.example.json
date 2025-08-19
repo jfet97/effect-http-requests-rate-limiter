@@ -1,23 +1,22 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // Type-check only, do not emit JS or declaration outputs
     "noEmit": true,
-    // Override base composite to avoid producing build info for tests
     "composite": false,
     "lib": [
       "ES2023"
     ],
     "types": [
-      "node",
-      "vitest/globals"
-    ]
+      "node"
+    ],
+    "moduleResolution": "Node16"
   },
-  // Only test sources here; src is brought in via the project reference below.
   "include": [
-    "./test/**/*.ts"
+    "./example/**/*.ts"
   ],
   "exclude": [
+    "./example/dist",
+    "node_modules",
     "./dist",
     "node_modules",
     "**/*.d.ts.map"
