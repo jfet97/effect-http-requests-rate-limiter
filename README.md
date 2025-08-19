@@ -9,7 +9,7 @@ Intelligent HTTP request rate limiter for [Effect](https://effect.website/) with
 **Features:**
 - 🚪 **Smart Gate Control**: Auto-manages request flow based on rate limit headers and 429 responses
 - ⚡ **Optimized Delays**: Minimizes cascading waits for concurrent requests
-- 📊 **Quota Monitoring**: Proactive handling using `x-ratelimit-remaining`/`x-ratelimit-reset` headers
+- 📊 **Quota Monitoring**: Proactive handling using relevant headers
 - 🔄 **Flexible Retries**: Configurable retry policies with exponential backoff
 - 🎛️ **Effect Integration**: Works with any Effect RateLimiter
 - 🚦 **Concurrency Control**: Semaphore-based request limiting
