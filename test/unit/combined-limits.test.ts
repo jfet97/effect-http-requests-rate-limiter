@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Fiber, Layer, RateLimiter, TestClock } from "effect"
+import { Duration, Effect, Fiber, RateLimiter, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -37,9 +37,10 @@ describe("Combined Limits (effectRateLimiter + maxConcurrentRequests)", () => {
       })
 
       const limiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         effectRateLimiter,
         maxConcurrentRequests: 1
-      }).pipe(Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient)))
+      })
 
       const req = () => limiter.limit(HttpClientRequest.get("http://test.com"))
 

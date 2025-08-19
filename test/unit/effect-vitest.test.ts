@@ -1,3 +1,4 @@
+import { HttpClient } from "@effect/platform"
 import { NodeHttpClient } from "@effect/platform-node"
 import { it } from "@effect/vitest"
 import { Duration, Effect, TestClock } from "effect"
@@ -9,8 +10,8 @@ import { TestScenarios } from "../__helpers__/scenarios.js"
 describe("Effect Vitest Integration", () => {
   it.scoped("should create rate limiter correctly", () =>
     Effect.gen(function*() {
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({})
-
+      const httpClient = yield* HttpClient.HttpClient
+      const rateLimiter = yield* HttpRequestsRateLimiter.make({ httpClient })
       expect(rateLimiter).toBeDefined()
       expect(typeof rateLimiter.limit).toBe("function")
     }).pipe(Effect.provide(NodeHttpClient.layerUndici)))
@@ -28,11 +29,12 @@ describe("Effect Vitest Integration", () => {
 
   it.scoped("should create rate limiter with configuration", () =>
     Effect.gen(function*() {
+      const httpClient = yield* HttpClient.HttpClient
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient,
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema,
         maxConcurrentRequests: 5
       })
-
       expect(rateLimiter).toBeDefined()
       expect(typeof rateLimiter.limit).toBe("function")
     }).pipe(Effect.provide(NodeHttpClient.layerUndici)))

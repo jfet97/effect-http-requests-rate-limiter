@@ -41,6 +41,8 @@ export function makeRetryPolicy(policy: RetryPolicy): RetryPolicy {
 }
 
 export interface Config {
+  /** HTTP client to use for making requests */
+  httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
   readonly rateLimiterHeadersSchema?: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
@@ -55,9 +57,9 @@ export const make = Effect.fn(
   "makeHttpRequestsRateLimiter"
 )(
   function*(config: Config) {
-    const httpClient = yield* pipe(
-      HttpClient.HttpClient,
-      Effect.map(HttpClient.filterStatusOk)
+    const httpClient = pipe(
+      config.httpClient,
+      HttpClient.filterStatusOk
     )
 
     const parseHeaders = (res: HttpClientResponse.HttpClientResponse) =>

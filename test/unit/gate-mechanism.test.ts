@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Fiber, Layer, TestClock } from "effect"
+import { Duration, Effect, Fiber, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -26,10 +26,9 @@ describe("Gate Mechanism", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       // Request succeeds and processes quota headers
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
@@ -59,10 +58,9 @@ describe("Gate Mechanism", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       // The request should fail with ResponseError after processing the gate delay
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com")).pipe(
@@ -122,10 +120,9 @@ describe("Gate Mechanism", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       const res1 = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/one"))
       expect(res1.status).toBe(200)
@@ -169,10 +166,9 @@ describe("Gate Mechanism", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       const first = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/a")).pipe(Effect.either)
       const second = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/b")).pipe(Effect.either)

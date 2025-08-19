@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Layer, Schedule, TestClock } from "effect"
+import { Duration, Effect, Schedule, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -43,9 +43,10 @@ describe("Retry Policy (no retry-after header)", () => {
         })
       )
 
-      const limiter = yield* HttpRequestsRateLimiter.make({ retryPolicy }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      const limiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
+        retryPolicy
+      })
 
       const fiber = yield* Effect.fork(limiter.limit(HttpClientRequest.get("http://test.com")))
       // Advance enough simulated time for both retry delays (approx 50 + 100)

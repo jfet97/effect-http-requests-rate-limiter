@@ -1,5 +1,5 @@
 import { DevTools } from "@effect/experimental"
-import { HttpClientRequest } from "@effect/platform"
+import { HttpClient, HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 
 import { Array, Duration, Effect, Layer, pipe, Random, RateLimiter, Schedule, Schema as S } from "effect"
@@ -52,8 +52,10 @@ const req = HttpClientRequest.get("http://localhost:3000")
 
 const main = Effect.gen(function*() {
   const rateLimiter = yield* EffectRateLimiter
+  const httpClient = yield* HttpClient.HttpClient
 
   const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
+    httpClient,
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter

@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Effect, Layer } from "effect"
+import { Effect } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -26,10 +26,9 @@ describe("Headers Parsing", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
@@ -54,10 +53,9 @@ describe("Headers Parsing", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.malformedHeaders.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       // Should succeed despite malformed headers (graceful fallback)
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
@@ -80,10 +78,9 @@ describe("Headers Parsing", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       // Should succeed when headers are missing (no rate limiting applied)
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
@@ -110,10 +107,9 @@ describe("Headers Parsing", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://api.example.com"))
       expect(result.status).toBe(200)
@@ -141,10 +137,9 @@ describe("Headers Parsing", () => {
       )
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
+        httpClient: mockClient,
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
-      }).pipe(
-        Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
-      )
+      })
 
       // First request should succeed but trigger gate closure
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))

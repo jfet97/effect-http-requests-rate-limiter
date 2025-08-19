@@ -24,7 +24,7 @@ pnpm i effect-http-requests-rate-limiter
 
 ```ts
 import { DevTools } from "@effect/experimental"
-import { HttpClientRequest } from "@effect/platform"
+import { HttpClient, HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 import { Duration, Effect, Layer, pipe, RateLimiter, Schedule, Schema as S } from "effect"
 import * as HttpRequestsRateLimiter from "effect-http-requests-rate-limiter"
@@ -73,7 +73,9 @@ const main = Effect.gen(function*() {
   const rateLimiter = yield* EffectRateLimiter
 
   // Create the requests rate limiter
+  const httpClient = yield* HttpClient.HttpClient
   const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
+    httpClient,
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter,
@@ -102,6 +104,8 @@ The `HttpRequestsRateLimiter.make` function accepts the following configuration:
 
 ```ts
 interface Config {
+  /** HTTP client to use for making requests (required) */
+  httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
   rateLimiterHeadersSchema?: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
