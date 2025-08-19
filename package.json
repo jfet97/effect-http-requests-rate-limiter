@@ -56,8 +56,7 @@
     "typescript": "^5.9.2"
   },
   "publishConfig": {
-    "access": "public",
-    "directory": "dist"
+    "access": "public"
   },
   "exports": {
     ".": {
