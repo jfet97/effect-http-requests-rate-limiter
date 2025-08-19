@@ -163,21 +163,30 @@ Common patterns:
 const DurationFromSeconds = S.transform(
   S.NumberFromString,
   S.DurationFromMillis,
-  { decode: (s) => s * 1000, encode: (ms) => ms / 1000 }
+  {
+    decode: (s) => s * 1000,
+    encode: (ms) => ms / 1000
+  }
 )
 
 // 2) Header gives EPOCH milliseconds (e.g. x-ratelimit-reset: "1734012345123")
 const DurationFromEpochMillis = S.transform(
   S.NumberFromString,
   S.DurationFromMillis,
-  { decode: (epochMs) => Math.max(epochMs - Date.now(), 0), encode: (ms) => Date.now() + ms }
+  {
+    decode: (epochMs) => Math.max(epochMs - Date.now(), 0),
+    encode: (ms) => Date.now() + ms
+  }
 )
 
 // 3) Header gives HTTP date (e.g. Retry-After: "Wed, 21 Oct 2015 07:28:00 GMT")
 const DurationFromHttpDate = S.transform(
   S.String,
   S.DurationFromMillis,
-  { decode: (d) => Math.max(new Date(d).getTime() - Date.now(), 0), encode: (ms) => new Date(Date.now() + ms).toUTCString() }
+  {
+    decode: (d) => Math.max(new Date(d).getTime() - Date.now(), 0),
+    encode: (ms) => new Date(Date.now() + ms).toUTCString()
+  }
 )
 ```
 
