@@ -154,27 +154,34 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 #### Semantics of `retryAfter` and `resetAfter`
 
-Both `retryAfter` and `resetAfter` are interpreted as **relative durations** ("wait this long"), *not* absolute timestamps. If the upstream API returns an absolute time (epoch seconds, milliseconds, or a date string), convert it to a relative duration in the schema layer.
+Always **relative durations** ("wait this long"), never absolute timestamps. Convert absolute values when decoding headers so the limiter only handles durations.
 
-Example: API returns `x-ratelimit-reset: 1734012345` (epoch seconds when the window resets):
+Common patterns:
 
 ```ts
-const ResetAfterFromEpochSeconds = S.transform(
+// 1) Header already gives SECONDS to wait (e.g. retry-after: "12")
+const DurationFromSeconds = S.transform(
   S.NumberFromString,
   S.DurationFromMillis,
-  {
-    decode: (epochSeconds) => Math.max(epochSeconds * 1000 - Date.now(), 0),
-    encode: (durationMs) => Math.round((Date.now() + durationMs) / 1000)
-  }
+  { decode: (s) => s * 1000, encode: (ms) => ms / 1000 }
 )
 
-const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
-  resetAfter: S.optional(ResetAfterFromEpochSeconds).pipe(S.fromKey("x-ratelimit-reset"))
-  // ... other fields
-}))
+// 2) Header gives EPOCH milliseconds (e.g. x-ratelimit-reset: "1734012345123")
+const DurationFromEpochMillis = S.transform(
+  S.NumberFromString,
+  S.DurationFromMillis,
+  { decode: (epochMs) => Math.max(epochMs - Date.now(), 0), encode: (ms) => Date.now() + ms }
+)
+
+// 3) Header gives HTTP date (e.g. Retry-After: "Wed, 21 Oct 2015 07:28:00 GMT")
+const DurationFromHttpDate = S.transform(
+  S.String,
+  S.DurationFromMillis,
+  { decode: (d) => Math.max(new Date(d).getTime() - Date.now(), 0), encode: (ms) => new Date(Date.now() + ms).toUTCString() }
+)
 ```
 
-Do the same for a `Retry-After` header that provides an absolute date (convert to milliseconds difference). This keeps the rate limiter logic simple, always expecting a relative `Duration`.
+Rule: end up with a `Duration` that represents "time to wait from now".
 
 ## How It Works
 
