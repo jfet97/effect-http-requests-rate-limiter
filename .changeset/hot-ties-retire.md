@@ -1,5 +1,5 @@
 ---
-"effect-requests-rate-limiter": patch
+"effect-http-requests-rate-limiter": patch
 ---
 
 add tests

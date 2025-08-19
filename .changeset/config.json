@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@2.3.1/schema.json",
-  "changelog": ["@changesets/changelog-github", {"repo": "jfet97/effect-requests-rate-limiter"}],
+  "changelog": ["@changesets/changelog-github", {"repo": "jfet97/effect-http-requests-rate-limiter"}],
   "commit": false,
   "fixed": [],
   "linked": [],

@@ -17,7 +17,7 @@ Intelligent HTTP request rate limiter for [Effect](https://effect.website/) with
 ## Installation
 
 ```sh
-pnpm i effect-requests-rate-limiter
+pnpm i effect-http-requests-rate-limiter
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ import { DevTools } from "@effect/experimental"
 import { HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 import { Duration, Effect, Layer, pipe, RateLimiter, Schedule, Schema as S } from "effect"
-import * as HttpRequestsRateLimiter from "effect-requests-rate-limiter"
+import * as HttpRequestsRateLimiter from "effect-http-requests-rate-limiter"
 
 // Helper for converting seconds to Duration
 const DurationFromSecondsString = S.transform(

@@ -1,14 +1,14 @@
 {
-  "name": "effect-requests-rate-limiter",
+  "name": "effect-http-requests-rate-limiter",
   "private": false,
   "type": "module",
   "version": "1.1.2",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jfet97/effect-requests-rate-limiter/"
+    "url": "https://github.com/jfet97/effect-http-requests-rate-limiter/"
   },
   "bugs": {
-    "url": "https://github.com/jfet97/effect-requests-rate-limiter/issues"
+    "url": "https://github.com/jfet97/effect-http-requests-rate-limiter/issues"
   },
   "description": "A rate limiter for Effect requests which supports headers parsing",
   "engines": {
