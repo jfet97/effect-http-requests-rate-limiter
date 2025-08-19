@@ -16,8 +16,8 @@
   },
   "scripts": {
     "clean": "rm -rf dist example/dist",
-    "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build",
-    "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
+  "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build tsconfig.src.json",
+  "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --project tsconfig.src.json --noEmit",
     "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./example/**/*.ts ./test/**/*.ts",
     "autofix": "pnpm lint --fix",
     "changeset": "changeset",

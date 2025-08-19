@@ -1,5 +1,5 @@
-import { it } from "@effect/vitest"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
+import { it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { describe, expect } from "vitest"
 
@@ -24,17 +24,16 @@ describe("Headers Parsing", () => {
           )
         )
       )
-      
+
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       }).pipe(
         Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
       )
-      
+
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
-    })
-  )
+    }))
 
   it.scoped("should handle malformed headers gracefully", () =>
     Effect.gen(function*() {
@@ -53,18 +52,17 @@ describe("Headers Parsing", () => {
           )
         )
       )
-      
+
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         rateLimiterHeadersSchema: TestScenarios.malformedHeaders.config.rateLimiterHeadersSchema
       }).pipe(
         Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
       )
-      
+
       // Should succeed despite malformed headers (graceful fallback)
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
-    })
-  )
+    }))
 
   it.scoped("should handle missing headers", () =>
     Effect.gen(function*() {
@@ -80,18 +78,17 @@ describe("Headers Parsing", () => {
           )
         )
       )
-      
+
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       }).pipe(
         Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
       )
-      
+
       // Should succeed when headers are missing (no rate limiting applied)
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
-    })
-  )
+    }))
 
   it.scoped("should handle different header formats", () =>
     Effect.gen(function*() {
@@ -111,20 +108,19 @@ describe("Headers Parsing", () => {
           )
         )
       )
-      
+
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       }).pipe(
         Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
       )
-      
+
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://api.example.com"))
       expect(result.status).toBe(200)
-      
+
       const body = yield* result.json
       expect(body).toEqual({ data: "test" })
-    })
-  )
+    }))
 
   it.scoped("should handle zero remaining quota", () =>
     Effect.gen(function*() {
@@ -143,18 +139,17 @@ describe("Headers Parsing", () => {
           )
         )
       )
-      
+
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
       }).pipe(
         Effect.provide(Layer.succeed(HttpClient.HttpClient, mockClient))
       )
-      
+
       // First request should succeed but trigger gate closure
       const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
-      
+
       // This validates that the headers were parsed correctly and gate was triggered
-    })
-  )
+    }))
 })

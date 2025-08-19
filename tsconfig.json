@@ -1,3 +1,13 @@
 {
-  "extends": "./tsconfig.src.json"
+  // Root project that stitches together buildable sub-projects.
+  // "src" emits to dist, "test" is type-checked only (noEmit) and depends on src.
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.src.json"
+    },
+    {
+      "path": "./tsconfig.test.json"
+    }
+  ]
 }

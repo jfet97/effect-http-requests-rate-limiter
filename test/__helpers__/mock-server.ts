@@ -1,5 +1,5 @@
 import { HttpServerResponse } from "@effect/platform"
-import { type Array, Duration, Effect, Layer, pipe, Ref } from "effect"
+import { Duration, Effect, pipe, Ref } from "effect"
 
 export interface MockServerConfig {
   readonly port: number
@@ -59,8 +59,15 @@ export const makeMockServer = (config: MockServerConfig) =>
       })
 
     const getNextResponse = (): MockResponse => {
-      const response = config.responses[currentResponseIndex]
-      currentResponseIndex = (currentResponseIndex + 1) % config.responses.length
+      const { responses } = config
+      if (responses.length === 0) {
+        throw new Error("MockServerConfig.responses must contain at least one response")
+      }
+      const response = responses.at(currentResponseIndex)
+      if (!response) {
+        throw new Error(`Invariant violated: no response at index ${currentResponseIndex}`)
+      }
+      currentResponseIndex = (currentResponseIndex + 1) % responses.length
       return response
     }
 
@@ -75,12 +82,13 @@ export const makeMockServer = (config: MockServerConfig) =>
           yield* Effect.sleep(mockResponse.delay)
         }
 
-        yield* pipe(
+        const eff = pipe(
           response,
           HttpServerResponse.setStatus(mockResponse.status),
           HttpServerResponse.setHeaders(mockResponse.headers),
           Effect.andThen(HttpServerResponse.text(mockResponse.body ?? ""))
         )
+        return eff
       })
 
     return { getStats, handleRequest }

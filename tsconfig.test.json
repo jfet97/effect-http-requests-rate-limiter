@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    // We only want type-checking for tests.
     "noEmit": true,
     "lib": [
       "ES2023"
@@ -8,15 +9,22 @@
     "types": [
       "node",
       "vitest/globals"
-    ]
+    ],
+    // Make sure incremental build info does not clash with src project.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo.test"
   },
+  // Only test sources here; src is brought in via the project reference below.
   "include": [
-    "./test/**/*.ts",
-    "./src/**/*.ts"
+    "./test/**/*.ts"
   ],
   "exclude": [
     "./dist",
     "node_modules",
     "**/*.d.ts.map"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.src.json"
+    }
   ]
 }
