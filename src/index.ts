@@ -1,5 +1,5 @@
 import { HttpClient, type HttpClientError, type HttpClientRequest, HttpClientResponse } from "@effect/platform"
-import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, type Schema as S } from "effect"
+import { Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, type Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
 export interface HeadersSchema extends
@@ -48,7 +48,8 @@ export const make = Effect.fn(
   "makeHttpRequestsRateLimiter"
 )(
   function*(config: Config) {
-    const httpClient = yield* HttpClient.HttpClient.pipe(
+    const httpClient = yield* pipe(
+      HttpClient.HttpClient,
       Effect.map(HttpClient.filterStatusOk)
     )
 
@@ -68,7 +69,8 @@ export const make = Effect.fn(
           _ satisfies S.Schema.Type<HeadersSchema> as S.Schema.Type<
             HeadersSchema
           >
-        )
+        ),
+        Effect.withSpan("HttpRequestsRateLimiter.parseHeaders")
       )
 
     const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
@@ -117,19 +119,22 @@ export const make = Effect.fn(
                     gate.open,
                     Effect.logInfo(LogMessages.gateIsOpen())
                   ], { concurrency: 2 })
-                )
+                ),
+                Effect.withSpan("HttpRequestsRateLimiter.gate.wait")
               )
-              : Effect.suspend(() =>
+              : pipe(
                 Effect.logInfo(
                   LogMessages.ignoredSuggestedWait(toWait, new Date(Duration.toMillis(startedAt)))
-                )
+                ),
+                Effect.withSpan("HttpRequestsRateLimiter.gate.skipWait")
               )
           }),
           Effect.forever
         )
       ),
       Effect.forkScoped,
-      Effect.interruptible
+      Effect.interruptible,
+      Effect.withSpan("HttpRequestsRateLimiter.gate.controllerFiber")
     )
 
     return {
@@ -139,49 +144,45 @@ export const make = Effect.fn(
           httpClient.execute,
           concurrencyLimiter?.withPermits(1) ?? identity,
           config.effectRateLimiter ?? identity,
-          Effect.andThen(Effect.fnUntraced(function*(res) {
-            const headers = yield* parseHeaders(res)
-
-            const { resetAfter, remainingRequestsQuota } = headers
-
-            if (
-              resetAfter != null &&
-              typeof remainingRequestsQuota === "number" &&
-              remainingRequestsQuota === 0
-            ) {
-              // Suggest to close the gate for the amount of time specified in the header
-              const startedAt = Duration.millis(Date.now())
-
-              yield* Effect.all([
-                PubSub.publish(pubsub, { toWait: resetAfter, startedAt }),
-                Effect.logInfo(
-                  LogMessages.suggestWait(
-                    resetAfter,
-                    new Date(Duration.toMillis(startedAt)),
-                    "end_of_quota"
+          Effect.andThen(
+            Effect.fn("HttpRequestsRateLimiter.limit.checkQuota")(function*(res) {
+              const headers = yield* parseHeaders(res)
+              const { resetAfter, remainingRequestsQuota } = headers
+              if (
+                resetAfter != null &&
+                typeof remainingRequestsQuota === "number" &&
+                remainingRequestsQuota === 0
+              ) {
+                // Suggest to close the gate for the amount of time specified in the header
+                const startedAt = Duration.millis(Date.now())
+                yield* Effect.all([
+                  PubSub.publish(pubsub, { toWait: resetAfter, startedAt }),
+                  Effect.logInfo(
+                    LogMessages.suggestWait(
+                      resetAfter,
+                      new Date(Duration.toMillis(startedAt)),
+                      "end_of_quota"
+                    )
                   )
-                )
-              ], { concurrency: 2 })
-            }
-
-            return res
-          })),
+                ], { concurrency: 2 })
+              }
+              return res
+            })
+          ),
           // Wait for gate to be open before executing the request
           gate.whenOpen,
           Effect.catchTag(
             "ResponseError",
-            Effect.fnUntraced(function*(err) {
+            Effect.fn("HttpRequestsRateLimiter.limit.handleResponseError")(function*(err) {
               const headers = yield* parseHeaders(err.response)
-
               const { retryAfter } = headers
-
               if (
                 err.response.status === 429 &&
                 retryAfter != null
               ) {
-                // Suggest to close the gate for the amount of time specified in the header
                 const startedAt = Duration.millis(Date.now())
 
+                // Suggest to close the gate for the amount of time specified in the header
                 yield* Effect.all([
                   PubSub.publish(pubsub, { toWait: retryAfter, startedAt }),
                   Effect.logInfo(
@@ -193,12 +194,12 @@ export const make = Effect.fn(
                   )
                 ], { concurrency: 2 })
               }
-
               // Yield the original error, so that the retry policy can be applied
               return yield* err
             })
           ),
-          config.retryPolicy ?? identity
+          config.retryPolicy ?? identity,
+          Effect.withSpan("HttpRequestsRateLimiter.limit")
         )
     }
   }

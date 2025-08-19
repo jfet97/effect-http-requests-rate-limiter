@@ -56,7 +56,7 @@ const main = Effect.gen(function*() {
   const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: myRetryPolicy,
-    effectRateLimiter: rateLimiter,
+    effectRateLimiter: rateLimiter
     // maxConcurrentRequests: 4
   })
 

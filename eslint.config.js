@@ -1,6 +1,6 @@
 import love from "eslint-config-love"
 import effectPlugin from "@effect/eslint-plugin"
-import espree from "espree"
+import * as espree from "espree"
 
 export default [
   {
