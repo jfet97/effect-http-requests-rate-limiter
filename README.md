@@ -113,7 +113,7 @@ interface Config {
 
 ## Helper Functions
 
-- **`makeHeadersSchema(schema)`**: Util for creating header schemas
+- **`makeHeadersSchema(fields)`**: Utility to build the headers schema (maps raw header names + decoding schemas to the three canonical fields). It also enforces that you configure either: (a) only `retryAfter`, (b) the pair `quotaRemainingRequests` + `quotaResetsAfter`, or (c) all three – this keeps intent clear while each decoded field remains optional at runtime if the header is actually absent.
 - **`makeRetryPolicy(policy)`**: Util for creating retry policies
 
 ### Rate Limiting Options
@@ -147,6 +147,9 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 **All fields are optional** - without headers, only retry policy, Effect rate limiter, and concurrency limits apply.
 
+- **`retryAfter`**: Wait time after 429 responses
+- **`quotaRemainingRequests` + `quotaResetsAfter`**: Proactive quota management - gate closes when quota = 0
+
 Why optional? Rate‑limit headers are often:
 1. Missing or intermittently stripped by proxies / CDNs
 2. Present only on certain statuses (e.g. 200 vs 429) or after a threshold
@@ -154,8 +157,9 @@ Why optional? Rate‑limit headers are often:
 
 Instead of failing parsing the schema treats every field as a best‑effort hint. The limiter then checks presence manually and only applies the gate / wait logic when the decoded value exists. This keeps the system resilient.
 
-- **`retryAfter`**: Wait time after 429 responses
-- **`quotaRemainingRequests` + `quotaResetsAfter`**: Proactive quota management - gate closes when quota = 0
+`HttpRequestsRateLimiter.makeHeadersSchema` exists to make that mapping explicit and typesafe: you declare which raw headers feed which semantic slot and (for clarity of the control logic) you must supply either just `retryAfter` (pure 429 handling), the quota pair (`quotaRemainingRequests` + `quotaResetsAfter`) for proactive gating, or all three for full behaviour.
+
+
 
 #### Semantics of `retryAfter` and `quotaResetsAfter`
 
