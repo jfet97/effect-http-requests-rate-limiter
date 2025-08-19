@@ -43,17 +43,11 @@ const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
 
 // Define schema for extracting relevant fields from the HTTP response headers
 // Adjust it to match the API you integrate with.
-const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
-  retryAfter: S.optional(DurationFromSecondsString).pipe(
-    S.fromKey("retry-after")
-  ),
-  quotaRemainingRequests: S.optional(NonNegativeFromString).pipe(
-    S.fromKey("x-ratelimit-remaining")
-  ),
-  quotaResetsAfter: S.optional(DurationFromSecondsString).pipe(
-    S.fromKey("x-ratelimit-reset")
-  )
-}))
+const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema({
+  retryAfter: { fromKey: "retry-after", schema: DurationFromSecondsString },
+  quotaRemainingRequests: { fromKey: "x-ratelimit-remaining", schema: NonNegativeFromString },
+  quotaResetsAfter: { fromKey: "x-ratelimit-reset", schema: DurationFromSecondsString }
+})
 
 // Configure retry policy for errors
 const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({

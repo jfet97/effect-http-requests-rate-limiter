@@ -1,30 +1,101 @@
 import { HttpClient, type HttpClientError, type HttpClientRequest, HttpClientResponse } from "@effect/platform"
-import { Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, type Schema as S } from "effect"
+import { Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
+/**
+ * Schema for HTTP headers related to rate limiting.
+ *
+ * @remarks
+ * This schema describes the structure and types of headers used to communicate
+ * rate limiting information, such as retry delays, remaining quota, and quota reset times.
+ *
+ * @property retryAfter - Optional duration to wait before retrying after receiving a 429 response.
+ * @property quotaRemainingRequests - Optional number of requests remaining in the current quota window.
+ *   When this reaches 0 and `quotaResetsAfter` is present, the gate will proactively close for that duration.
+ * @property quotaResetsAfter - Optional duration until the quota window resets.
+ */
 export interface HeadersSchema extends
   S.Schema<
     {
       /**
        * Retry delay after a 429 (relative duration to wait before retrying).
        */
-      readonly "retryAfter"?: Duration.Duration | undefined
+      readonly retryAfter?: Duration.Duration
       /**
        * Remaining request quota in the current window. When it reaches 0 and
        * `quotaResetsAfter` is present the gate will proactively close for that duration.
        */
-      readonly "quotaRemainingRequests"?: S.Schema.Type<S.NonNegative> | undefined
+      readonly quotaRemainingRequests?: S.Schema.Type<S.NonNegative>
       /**
        * Time until the quota window resets (relative duration).
        */
-      readonly "quotaResetsAfter"?: Duration.Duration | undefined
+      readonly quotaResetsAfter?: Duration.Duration
     },
     Readonly<Record<string, string | undefined>>
   >
 {}
 
-export function makeHeadersSchema(s: HeadersSchema): HeadersSchema {
-  return s
+export type HeaderFieldDescriptor<A> = {
+  /** HTTP response header name (e.g. "retry-after") */
+  readonly fromKey: string
+  /** Schema decoding a single header value (string) to the target type */
+  readonly schema: S.Schema<A, string>
+}
+
+/**
+ * Utility to build the rate‑limit headers schema from header descriptors.
+ *
+ * Provide exactly one of these combinations:
+ *  1. { retryAfter }
+ *  2. { quotaRemainingRequests, quotaResetsAfter }
+ *  3. { retryAfter, quotaRemainingRequests, quotaResetsAfter }
+ *
+ * Each descriptor supplies:
+ *  - fromKey: actual HTTP header name
+ *  - schema: Schema decoding the header string into the target domain type (Duration or NonNegative number)
+ *
+ * Returns a Schema that properly decodes a headers record.
+ */
+export function makeHeadersSchema(
+  fields: {
+    retryAfter: HeaderFieldDescriptor<Duration.Duration>
+    quotaRemainingRequests?: never
+    quotaResetsAfter?: never
+  } | {
+    retryAfter?: never
+    quotaRemainingRequests: HeaderFieldDescriptor<S.Schema.Type<S.NonNegative>>
+    quotaResetsAfter: HeaderFieldDescriptor<Duration.Duration>
+  } | {
+    retryAfter: HeaderFieldDescriptor<Duration.Duration>
+    quotaRemainingRequests: HeaderFieldDescriptor<S.Schema.Type<S.NonNegative>>
+    quotaResetsAfter: HeaderFieldDescriptor<Duration.Duration>
+  }
+): HeadersSchema {
+  let schemaFields = {}
+  if ("retryAfter" in fields) {
+    schemaFields = {
+      ...schemaFields,
+      retryAfter: S.optional(fields.retryAfter.schema).pipe(S.fromKey(fields.retryAfter.fromKey))
+    }
+  }
+  if ("quotaRemainingRequests" in fields) {
+    schemaFields = {
+      ...schemaFields,
+      quotaRemainingRequests: S.optional(fields.quotaRemainingRequests.schema).pipe(
+        S.fromKey(fields.quotaRemainingRequests.fromKey)
+      )
+    }
+  }
+  if ("quotaResetsAfter" in fields) {
+    schemaFields = {
+      ...schemaFields,
+      quotaResetsAfter: S.optional(fields.quotaResetsAfter.schema).pipe(
+        S.fromKey(fields.quotaResetsAfter.fromKey)
+      )
+    }
+  }
+
+  return S.Struct(schemaFields) as HeadersSchema
 }
 
 /**

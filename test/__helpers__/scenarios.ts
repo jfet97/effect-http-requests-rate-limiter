@@ -12,17 +12,11 @@ export const DurationFromSecondsString = S.transform(
 
 export const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
 
-export const TestHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
-  retryAfter: S.optional(DurationFromSecondsString).pipe(
-    S.fromKey("retry-after")
-  ),
-  quotaRemainingRequests: S.optional(NonNegativeFromString).pipe(
-    S.fromKey("x-ratelimit-remaining")
-  ),
-  quotaResetsAfter: S.optional(DurationFromSecondsString).pipe(
-    S.fromKey("x-ratelimit-reset")
-  )
-}))
+export const TestHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema({
+  retryAfter: { fromKey: "retry-after", schema: DurationFromSecondsString },
+  quotaRemainingRequests: { fromKey: "x-ratelimit-remaining", schema: NonNegativeFromString },
+  quotaResetsAfter: { fromKey: "x-ratelimit-reset", schema: DurationFromSecondsString }
+})
 
 export const NoRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy((effect) => effect)
 
