@@ -70,10 +70,10 @@ const EffectRateLimiter = RateLimiter.make({
 })
 
 const main = Effect.gen(function*() {
+  const httpClient = yield* HttpClient.HttpClient
   const rateLimiter = yield* EffectRateLimiter
 
   // Create the requests rate limiter
-  const httpClient = yield* HttpClient.HttpClient
   const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
     httpClient,
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
