@@ -1,4 +1,4 @@
-# Effect Requests Rate Limiter
+# Effect HTTP Requests Rate Limiter
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -26,8 +26,8 @@ pnpm i effect-requests-rate-limiter
 import { DevTools } from "@effect/experimental"
 import { HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
-import { Duration, Effect, RateLimiter, Schedule, Schema as S } from "effect"
-import { makeRequestsRateLimiter, type RetryPolicy } from "effect-requests-rate-limiter"
+import { Duration, Effect, Layer, pipe, RateLimiter, Schedule, Schema as S } from "effect"
+import * as HttpRequestsRateLimiter from "effect-requests-rate-limiter"
 
 // Helper for converting seconds to Duration
 const DurationFromSecondsString = S.transform(
@@ -39,36 +39,42 @@ const DurationFromSecondsString = S.transform(
   }
 )
 
+const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
+
 // Define schema for parsing rate limit headers
-const RateLimitHeadersSchema = S.Struct({
-  retryAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("retry-after")),
-  remainingRequestsQuota: S.optional(S.compose(S.NumberFromString, S.NonNegative)).pipe(
+const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
+  retryAfter: S.optional(DurationFromSecondsString).pipe(
+    S.fromKey("retry-after")
+  ),
+  remainingRequestsQuota: S.optional(NonNegativeFromString).pipe(
     S.fromKey("x-ratelimit-remaining")
   ),
-  resetAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("x-ratelimit-reset"))
-})
+  resetAfter: S.optional(DurationFromSecondsString).pipe(
+    S.fromKey("x-ratelimit-reset")
+  )
+}))
 
 // Configure retry policy for 429 responses
-const MyRetryPolicy = Effect.retry({
+const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
   schedule: Schedule.jittered(Schedule.exponential("200 millis")),
   while: (err) => err._tag === "ResponseError" && err.response.status === 429,
   times: 5
-}) satisfies RetryPolicy
+}))
 
 // Create Effect rate limiter
-const MyRateLimiter = RateLimiter.make({
+const EffectRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
   interval: Duration.seconds(3)
 })
 
-const main = Effect.gen(function*($) {
-  const rateLimiter = yield* MyRateLimiter
+const main = Effect.gen(function*() {
+  const rateLimiter = yield* EffectRateLimiter
 
   // Create the requests rate limiter
-  const requestsRateLimiter = yield* makeRequestsRateLimiter({
+  const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
-    retryPolicy: MyRetryPolicy,
+    retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter,
     maxConcurrentRequests: 4
   })
@@ -76,36 +82,40 @@ const main = Effect.gen(function*($) {
   const req = HttpClientRequest.get("http://localhost:3000")
 
   // Use the rate limiter to control requests
-  const limitedRequest = requestsRateLimiter.limit(req)
-
-  // Execute the rate-limited request
-  const response = yield* limitedRequest
+  const response = yield* requestsRateLimiter.limit(req)
 
   // Handle response...
-})
+}).pipe(Effect.scoped)
 
 NodeRuntime.runMain(main.pipe(
-  Effect.provide(NodeHttpClient.layer),
-  Effect.provide(DevTools.layer())
+  Effect.provide(Layer.merge(
+    NodeHttpClient.layer,
+    DevTools.layer()
+  ))
 ))
 ```
 
 ## Configuration Options
 
-The `makeRequestsRateLimiter` function accepts the following configuration:
+The `HttpRequestsRateLimiter.make` function accepts the following configuration:
 
 ```ts
-interface RequestsRateLimiterConfig {
+interface Config {
   /** Schema for parsing rate limit headers from HTTP responses */
-  rateLimiterHeadersSchema?: RateLimiterHeadersSchema
+  rateLimiterHeadersSchema?: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
   retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
   effectRateLimiter?: RateLimiter.RateLimiter
-  /** Maximum number of concurrent requests allowed (simple alternative to effectRateLimiter) */
+  /** Maximum number of concurrent requests allowed */
   maxConcurrentRequests?: number
 }
 ```
+
+## Helper Functions
+
+- **`makeHeadersSchema(schema)`**: Type-safe wrapper for creating header schemas
+- **`makeRetryPolicy(policy)`**: Type-safe wrapper for creating retry policies
 
 ### Rate Limiting Options
 
@@ -123,7 +133,7 @@ The library uses a **configurable schema** to parse HTTP response headers into t
   /** Retry delay - used when receiving 429 responses */
   readonly "retryAfter"?: Duration.Duration | undefined
   /** Remaining request quota in the current window */
-  readonly "remainingRequestsQuota"?: number | undefined  
+  readonly "remainingRequestsQuota"?: number | undefined
   /** Time until the rate limit window resets */
   readonly "resetAfter"?: Duration.Duration | undefined
 }

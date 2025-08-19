@@ -1,15 +1,15 @@
 import { DevTools } from "@effect/experimental"
-import { HttpClientRequest } from "@effect/platform"
+import { HttpClient, HttpClientRequest } from "@effect/platform"
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 
-import { Array, Console, Duration, Effect, Random, RateLimiter, Schedule, Schema as S } from "effect"
-import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
+import { Array, Duration, Effect, Layer, pipe, Random, RateLimiter, Schedule, Schema as S } from "effect"
+import * as HttpRequestsRateLimiter from "../src/index.js"
 
 // helper
 
 export const logTime = Effect
   .sync(() => new Date().toISOString())
-  .pipe(Effect.andThen(Console.log))
+  .pipe(Effect.andThen(Effect.log))
 
 // test
 
@@ -22,21 +22,27 @@ const DurationFromSecondsString = S.transform(
   }
 )
 
-export const RateLimitHeadersSchema = S.Struct({
-  retryAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("retry-after")),
-  remainingRequestsQuota: S.optional(S.compose(S.NumberFromString, S.NonNegative)).pipe(
+const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
+
+const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
+  retryAfter: S.optional(DurationFromSecondsString).pipe(
+    S.fromKey("retry-after")
+  ),
+  remainingRequestsQuota: S.optional(NonNegativeFromString).pipe(
     S.fromKey("x-ratelimit-remaining")
   ),
-  resetAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("x-ratelimit-reset"))
-})
+  resetAfter: S.optional(DurationFromSecondsString).pipe(
+    S.fromKey("x-ratelimit-reset")
+  )
+}))
 
-const MyRetryPolicy = Effect.retry({
+const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
   schedule: Schedule.jittered(Schedule.exponential("200 millis")),
   while: (err) => err._tag === "ResponseError" && err.response.status === 429,
   times: 5
-}) satisfies RetryPolicy
+}))
 
-const MyRateLimiter = RateLimiter.make({
+const EffectRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
   interval: Duration.seconds(3)
@@ -44,27 +50,27 @@ const MyRateLimiter = RateLimiter.make({
 
 const req = HttpClientRequest.get("http://localhost:3000")
 
-const main = Effect.gen(function*($) {
-  const rateLimiter = yield* MyRateLimiter
+const main = Effect.gen(function*() {
+  const rateLimiter = yield* EffectRateLimiter
 
-  const requestsRateLimiter = yield* makeRequestsRateLimiter({
+  const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
-    retryPolicy: MyRetryPolicy,
+    retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter,
     maxConcurrentRequests: 4
   })
 
-  const reqEffect = $(
+  const reqEffect = pipe(
     requestsRateLimiter.limit(req),
-    Effect.andThen((_) => Console.log("Response received")),
+    Effect.andThen((_) => Effect.logInfo("Response received")),
     Effect.andThen(logTime),
-    Effect.catchAll((err) => Console.error(err))
+    Effect.catchAll((err) => Effect.logError(err))
   )
 
   yield* Effect.repeat(
-    Effect.gen(function*($) {
+    Effect.gen(function*() {
       // launch 12 requests every 2 seconds with random starting point
-      const randomReq = $(
+      const randomReq = pipe(
         Random.nextRange(0, 1000),
         Effect.andThen(Duration.millis),
         Effect.andThen(Effect.sleep),
@@ -79,6 +85,11 @@ const main = Effect.gen(function*($) {
 }).pipe(Effect.scoped)
 
 NodeRuntime.runMain(main.pipe(
-  Effect.provide(NodeHttpClient.layer),
-  Effect.provide(DevTools.layer())
+  Effect.provide(Layer.merge(
+    Layer.effect(
+      HttpClient.HttpClient,
+      HttpClient.HttpClient.pipe(Effect.map(HttpClient.filterStatusOk))
+    ).pipe(Layer.provide(NodeHttpClient.layer)),
+    DevTools.layer()
+  ))
 ))
