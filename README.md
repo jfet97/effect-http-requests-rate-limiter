@@ -9,7 +9,7 @@ The Effect Requests Rate Limiter is a sophisticated rate limiting solution built
 Key capabilities:
 - **Intelligent Gate Control**: Automatically closes/opens request flow based on rate limit headers and 429 responses
 - **Smart Delay Optimization**: Minimizes cascading delays when multiple concurrent requests hit rate limits
-- **Quota Monitoring**: Proactively handles quota exhaustion using `x-ratelimit-remaining` headers
+- **Quota Monitoring**: Proactively handles quota exhaustion
 - **Configurable Retry Policies**: Supports custom retry strategies with exponential backoff
 
 ## Features
@@ -18,7 +18,7 @@ Key capabilities:
 - ⚡ **Smart Concurrency**: Optimized delay handling for concurrent requests hitting rate limits
 - 🔄 **Flexible Retry Policies**: Configurable retry strategies with jittered exponential backoff
 - 📊 **Quota Awareness**: Proactive handling of request quotas using standard rate limit headers
-- 🎛️ **Configurable Rate Limiting**: Support for various algorithms (fixed-window, token bucket, etc.)
+- 🎛️ **Effect RateLimiter Integration**: Accepts any Effect RateLimiter for additional request control
 - 🔧 **Header Schema Parsing**: Customizable parsing of rate limit headers (`retry-after`, `x-ratelimit-remaining`, `x-ratelimit-reset`)
 - 🚦 **Concurrency Control**: Maximum concurrent request limiting with semaphore-based control
 
