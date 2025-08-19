@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.0.4
+
+### Patch Changes
+
+- [`08b209b`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/08b209b334e6c1567171b8cf4d2ce28f8f6fabe0) Thanks [@jfet97](https://github.com/jfet97)! - renaming
+
 ## 0.0.3
 
 ### Patch Changes
