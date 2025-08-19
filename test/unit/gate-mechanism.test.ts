@@ -88,7 +88,7 @@ describe("Gate Mechanism", () => {
       expect(endTime - startTime).toBe(Duration.toMillis(Duration.seconds(60)))
     }))
 
-  it.scoped("should block subsequent requests until resetAfter elapses", () =>
+  it.scoped("should block subsequent requests until quotaResetsAfter elapses", () =>
     Effect.gen(function*() {
       let call = 0
       const mockClient = HttpClient.make((request) =>

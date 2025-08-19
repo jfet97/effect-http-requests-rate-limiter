@@ -11,13 +11,13 @@ export interface HeadersSchema extends
       readonly "retryAfter"?: Duration.Duration | undefined
       /**
        * Remaining request quota in the current window. When it reaches 0 and
-       * `resetAfter` is present the gate will proactively close for that duration.
+       * `quotaResetsAfter` is present the gate will proactively close for that duration.
        */
-      readonly "remainingRequestsQuota"?: S.Schema.Type<S.NonNegative> | undefined
+      readonly "quotaRemainingRequests"?: S.Schema.Type<S.NonNegative> | undefined
       /**
        * Time until the quota window resets (relative duration).
        */
-      readonly "resetAfter"?: Duration.Duration | undefined
+      readonly "quotaResetsAfter"?: Duration.Duration | undefined
     },
     Readonly<Record<string, string | undefined>>
   >
@@ -154,19 +154,19 @@ export const make = Effect.fn(
           Effect.andThen(
             Effect.fn("HttpRequestsRateLimiter.limit.checkQuota")(function*(res) {
               const headers = yield* parseHeaders(res)
-              const { resetAfter, remainingRequestsQuota } = headers
+              const { quotaResetsAfter, quotaRemainingRequests } = headers
               if (
-                resetAfter != null &&
-                typeof remainingRequestsQuota === "number" &&
-                remainingRequestsQuota === 0
+                quotaResetsAfter != null &&
+                typeof quotaRemainingRequests === "number" &&
+                quotaRemainingRequests === 0
               ) {
                 // Suggest to close the gate for the amount of time specified in the header
                 const startedAt = Duration.millis(Date.now())
                 yield* Effect.all([
-                  PubSub.publish(pubsub, { toWait: resetAfter, startedAt }),
+                  PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
                   Effect.logInfo(
                     LogMessages.suggestWait(
-                      resetAfter,
+                      quotaResetsAfter,
                       new Date(Duration.toMillis(startedAt)),
                       "end_of_quota"
                     )

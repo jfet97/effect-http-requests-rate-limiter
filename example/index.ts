@@ -28,10 +28,10 @@ const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struc
   retryAfter: S.optional(DurationFromSecondsString).pipe(
     S.fromKey("retry-after")
   ),
-  remainingRequestsQuota: S.optional(NonNegativeFromString).pipe(
+  quotaRemainingRequests: S.optional(NonNegativeFromString).pipe(
     S.fromKey("x-ratelimit-remaining")
   ),
-  resetAfter: S.optional(DurationFromSecondsString).pipe(
+  quotaResetsAfter: S.optional(DurationFromSecondsString).pipe(
     S.fromKey("x-ratelimit-reset")
   )
 }))

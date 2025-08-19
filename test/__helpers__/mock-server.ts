@@ -22,11 +22,11 @@ export const make429Response = (retryAfter: Duration.Duration): MockResponse => 
   body: JSON.stringify({ error: "Rate limit exceeded" })
 })
 
-export const makeQuotaResponse = (remaining: number, resetAfter: Duration.Duration): MockResponse => ({
+export const makeQuotaResponse = (remaining: number, quotaResetsAfter: Duration.Duration): MockResponse => ({
   status: 200,
   headers: {
     "x-ratelimit-remaining": remaining.toString(),
-    "x-ratelimit-reset": Duration.toSeconds(resetAfter).toString(),
+    "x-ratelimit-reset": Duration.toSeconds(quotaResetsAfter).toString(),
     "content-type": "application/json"
   },
   body: JSON.stringify({ success: true })

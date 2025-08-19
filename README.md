@@ -47,10 +47,10 @@ const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struc
   retryAfter: S.optional(DurationFromSecondsString).pipe(
     S.fromKey("retry-after")
   ),
-  remainingRequestsQuota: S.optional(NonNegativeFromString).pipe(
+  quotaRemainingRequests: S.optional(NonNegativeFromString).pipe(
     S.fromKey("x-ratelimit-remaining")
   ),
-  resetAfter: S.optional(DurationFromSecondsString).pipe(
+  quotaResetsAfter: S.optional(DurationFromSecondsString).pipe(
     S.fromKey("x-ratelimit-reset")
   )
 }))
@@ -137,22 +137,22 @@ The library uses a **configurable schema** to parse HTTP response headers into t
   readonly "retryAfter"?: Duration.Duration | undefined
   /**
    * Remaining request quota in the current window. When it reaches 0 and
-   * `resetAfter` is present the gate will proactively close for that duration.
+   * `quotaResetsAfter` is present the gate will proactively close for that duration.
    */
-  readonly "remainingRequestsQuota"?: number | undefined
+  readonly "quotaRemainingRequests"?: number | undefined
   /**
    * Time until the quota window resets (relative duration).
    */
-  readonly "resetAfter"?: Duration.Duration | undefined
+  readonly "quotaResetsAfter"?: Duration.Duration | undefined
 }
 ```
 
 **All fields optional** - without headers, only retry policy, Effect rate limiter, and concurrency limits apply.
 
 - **`retryAfter`**: Wait time after 429 responses
-- **`remainingRequestsQuota` + `resetAfter`**: Proactive quota management - gate closes when quota = 0
+- **`quotaRemainingRequests` + `quotaResetsAfter`**: Proactive quota management - gate closes when quota = 0
 
-#### Semantics of `retryAfter` and `resetAfter`
+#### Semantics of `retryAfter` and `quotaResetsAfter`
 
 Always **relative durations** ("wait this long"), never absolute timestamps. Convert absolute values when decoding headers so the limiter only handles durations.
 
