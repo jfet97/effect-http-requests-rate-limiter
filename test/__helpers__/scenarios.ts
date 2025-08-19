@@ -1,4 +1,4 @@
-import { Duration, Schema as S } from "effect"
+import { Schema as S } from "effect"
 import * as HttpRequestsRateLimiter from "../../src/index.js"
 
 export const DurationFromSecondsString = S.transform(
@@ -45,7 +45,7 @@ export const TestScenarios = {
       }
     ]
   },
-  
+
   rateLimitHit: {
     config: {
       rateLimiterHeadersSchema: TestHeadersSchema,
