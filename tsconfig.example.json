@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    // composite true per consentire la project reference
+    // composite true to allow the project reference
     "composite": true,
     "tsBuildInfoFile": "./example/.tsbuildinfo",
     "lib": [

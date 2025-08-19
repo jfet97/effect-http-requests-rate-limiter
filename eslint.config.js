@@ -6,7 +6,7 @@ export default [
   {
     ignores: ["dist/**", "build/**", "docs/**", "**/*.md"]
   },
-  // Override specifico: lintare questo file come semplice JS (Espree), senza type-aware parser
+  // Specific override: lint this file as plain JS (Espree), without the type-aware parser
   {
     files: ["eslint.config.js"],
     languageOptions: {

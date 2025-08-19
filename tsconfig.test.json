@@ -1,10 +1,10 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // Solo type-check dei test; mantenere composite per integration col project graph
+    // Only type-check tests; keep composite for integration with the project graph
     "noEmit": true,
     "composite": true,
-    // Evita richieste di output già buildato; il language service userà i sorgenti della ref
+    // Avoid requests for already built output; the language service will use the sources from the referenced project
     "disableSourceOfProjectReferenceRedirect": false,
     "lib": [
       "ES2023"
@@ -14,7 +14,7 @@
       "vitest/globals"
     ],
     "allowImportingTsExtensions": true,
-    // Manteniamo skipLibCheck per velocità (rimuovi se vuoi massima strictness)
+    // Keep skipLibCheck for speed (remove it if you want maximum strictness)
     "skipLibCheck": true,
     "moduleResolution": "Node16"
   },

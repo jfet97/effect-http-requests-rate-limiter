@@ -1,5 +1,5 @@
 {
-  // Solution tsconfig: include buildable lib + example + test (editor graph completo)
+  // Solution tsconfig: includes buildable library + example + test (full editor project graph)
   "files": [],
   "references": [
     {
