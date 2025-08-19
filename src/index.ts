@@ -1,49 +1,47 @@
 import { type HttpClientError, type HttpClientRequest, HttpClientResponse } from "@effect/platform"
-import type * as S from "@effect/schema"
-import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter } from "effect"
+import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, type Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
-export interface RateLimitHeadersSchema extends
-  S.Schema.Schema<
+export interface RateLimiterHeadersSchema extends
+  S.Schema<
     {
-      /** milliseconds to wait before retrying */
+      /** retry delay in milliseconds */
       readonly "retryAfterMillis"?: number | undefined
-      /** remaining requests quota in the current window */
+      /** remaining request quota in the current window */
       readonly "remainingRequestsQuota"?: number | undefined
-      /** the milliseconds remaining in the current window */
+      /** milliseconds until the rate limit window resets */
       readonly "resetAfterMillis"?: number | undefined
     },
     Readonly<Record<string, string | undefined>>
   >
 {}
 
-export interface RateLimitHeadersSchemaType extends S.Schema.Schema.Type<RateLimitHeadersSchema> {}
+export interface RateLimiterHeadersSchemaType extends S.Schema.Type<RateLimiterHeadersSchema> {}
 
-export type RetryPolicy = <A, R>(
-  _: Effect.Effect<A, HttpClientError.RequestError | HttpClientError.ResponseError, R>
-) => Effect.Effect<A, HttpClientError.RequestError | HttpClientError.ResponseError, R>
+export interface RetryPolicy {
+  <A, R>(_: Effect.Effect<A, HttpClientError.HttpClientError, R>): Effect.Effect<A, HttpClientError.HttpClientError, R>
+}
 
 export interface RequestsRateLimiterConfig {
-  /** schema to parse the headers of the response to extract the retry-after header */
-  readonly rateLimitHeadersSchema?: RateLimitHeadersSchema
-  /** retry policy to apply when a 429 is detected */
+  /** schema for parsing rate limit headers from HTTP responses */
+  readonly rateLimiterHeadersSchema?: RateLimiterHeadersSchema
+  /** retry policy to use when rate limit is exceeded (429 status) */
   readonly retryPolicy?: RetryPolicy
-  /** rate limiter to only allow n starting requests */
-  readonly rateLimiter?: RateLimiter.RateLimiter
-  /** max number of concurrent requests */
+  /** rate limiter to control the number of concurrent outgoing requests */
+  readonly effectRateLimiter?: RateLimiter.RateLimiter
+  /** maximum number of concurrent requests allowed */
   readonly maxConcurrentRequests?: number
 }
 
 export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
-  const parseHeaders = (res: HttpClientResponse.HttpClientResponse) => {
-    return pipe(
-      config.rateLimitHeadersSchema,
+  const parseHeaders = (res: HttpClientResponse.HttpClientResponse) =>
+    pipe(
+      config.rateLimiterHeadersSchema,
       Effect.fromNullable,
       Effect.andThen((schema) => HttpClientResponse.schemaHeaders(schema)(res)),
-      Effect.catchTag("NoSuchElementException", (_) => Effect.succeed({})),
-      Effect.map((_) => _ satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)
+      Effect.catchAll((_) => Effect.succeed({})),
+      Effect.map((_) => _ satisfies RateLimiterHeadersSchemaType)
     )
-  }
 
   return Effect.gen(function*($) {
     const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
@@ -99,14 +97,14 @@ export function makeRequestsRateLimiter(config: RequestsRateLimiterConfig) {
         // to be handled after a 429 has been detected (or after quota = 0 has been detected)
         Effect.zipRight(gate.withPermits(1)(Effect.void), req),
         concurrencyLimiter?.withPermits(1) ?? identity,
-        config.rateLimiter ?? identity,
+        config.effectRateLimiter ?? identity,
         Effect.andThen((res) =>
           Effect.gen(function*($) {
             const headers = yield* parseHeaders(res)
               // ignore parse error, just return an empty object
               .pipe(
                 Effect.orElseSucceed(
-                  () => ({} satisfies RateLimitHeadersSchemaType as RateLimitHeadersSchemaType)
+                  () => ({} satisfies RateLimitHeadersSchemaType)
                 )
               )
 

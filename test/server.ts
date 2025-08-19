@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
 import Fastify from "fastify"
 
 const fastify = Fastify()

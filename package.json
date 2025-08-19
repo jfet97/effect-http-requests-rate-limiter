@@ -2,7 +2,7 @@
   "name": "effect-requests-rate-limiter",
   "private": false,
   "type": "module",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/jfet97/effect-requests-rate-limiter/"
@@ -12,7 +12,7 @@
   },
   "description": "A rate limiter for Effect requests which supports headers parsing",
   "engines": {
-    "pnpm": ">= 9.0.4"
+    "pnpm": ">= 10.14.0"
   },
   "scripts": {
     "clean": "rm -rf dist test/dist",
@@ -25,29 +25,27 @@
   "author": "Andrea Simone Costa",
   "license": "MIT",
   "peerDependencies": {
-    "@effect/platform": "^0.58.20",
-    "@effect/schema": "^0.68.17",
-    "effect": "^3.4.7"
+    "@effect/platform": "^0.90.4",
+    "effect": "^3.17.7"
   },
   "devDependencies": {
-    "@effect/eslint-plugin": "^0.1.2",
-    "@effect/experimental": "^0.17.22",
-    "@effect/platform": "^0.58.20",
-    "@effect/platform-node": "^0.53.19",
-    "@effect/schema": "^0.68.17",
-    "@fastify/rate-limit": "^9.1.0",
+    "@effect/eslint-plugin": "^0.3.2",
+    "@effect/experimental": "^0.54.6",
+    "@effect/platform": "^0.90.4",
+    "@effect/platform-node": "^0.96.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@tsconfig/strictest": "^2.0.5",
-    "@typescript-eslint/eslint-plugin": "^7.0.1",
-    "effect": "^3.4.7",
-    "eslint": "^8.56.0",
-    "eslint-config-love": "^47.0.0",
-    "eslint-import-resolver-typescript": "^3.6.1",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-n": "^15.0.0 || ^16.0.0",
-    "eslint-plugin-promise": "^6.1.1",
-    "fastify": "^4.28.1",
-    "tsx": "^4.16.2",
-    "typescript": "^5.4.5"
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "effect": "^3.17.7",
+    "eslint": "^9.33.0",
+    "eslint-config-love": "^121.0.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.21.3",
+    "eslint-plugin-promise": "^7.2.1",
+    "fastify": "^5.5.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2"
   },
   "publishConfig": {
     "access": "public",

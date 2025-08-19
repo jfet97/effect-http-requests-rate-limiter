@@ -8,7 +8,7 @@ import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
 // helper
 
 export const logTime = Effect
-  .sync(() => `${new Date().toISOString()}`)
+  .sync(() => new Date().toISOString())
   .pipe(Effect.andThen(Console.log))
 
 // test
@@ -56,9 +56,9 @@ const main = Effect.gen(function*($) {
   const rateLimiter = yield* MyRateLimiter
 
   const requestsRateLimiter = yield* makeRequestsRateLimiter({
-    rateLimitHeadersSchema: RateLimitHeadersSchema,
+    rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: MyRetryPolicy,
-    rateLimiter,
+    effectRateLimiter: rateLimiter,
     maxConcurrentRequests: 4
   })
 
