@@ -5,9 +5,11 @@
     "outDir": "./test/dist",
     "tsBuildInfoFile": "./test/dist/.tsbuildinfo",
     "lib": [
-      "esnext",
-      "dom"
+      "ES2023"
     ],
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "./test/**/*.ts",
@@ -29,5 +31,5 @@
     {
       "path": "./tsconfig.src.json"
     }
-  ],
+  ]
 }

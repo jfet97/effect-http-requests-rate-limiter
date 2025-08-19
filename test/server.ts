@@ -1,20 +1,26 @@
+import rateLimit from "@fastify/rate-limit"
 import Fastify from "fastify"
+import { setTimeout as sleep } from "node:timers/promises"
 
-const fastify = Fastify()
+const fastify = Fastify({ logger: true })
 
-fastify.register(import("@fastify/rate-limit"), {
+await fastify.register(rateLimit, {
   max: 5,
-  timeWindow: "3 second"
-}).then(() => {
-  fastify.get("/", async (_, reply) => {
-    console.log("received")
-    // simulate some work
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    reply.send({ hello: "world" })
-  })
-
-  fastify.listen({ port: 3000 }, (err) => {
-    if (err != null) throw err
-    console.log("Server listening at http://localhost:3000")
-  })
+  timeWindow: "3 seconds"
 })
+
+fastify.get("/", async (_req, reply) => {
+  fastify.log.info("received")
+  await sleep(900)
+  await reply.send({ hello: "world" })
+})
+
+await fastify
+  .listen({ port: 3000 })
+  .then(() => {
+    fastify.log.info("Server listening at http://localhost:3000")
+  })
+  .catch((err: unknown) => {
+    fastify.log.error({ err }, "Failed to start server")
+    throw err
+  })

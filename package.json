@@ -42,6 +42,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@tsconfig/strictest": "^2.0.5",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
+  "@types/node": "^24.3.0",
     "effect": "^3.17.7",
     "eslint": "^9.33.0",
     "eslint-config-love": "^121.0.0",
