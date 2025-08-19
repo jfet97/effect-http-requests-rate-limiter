@@ -4,23 +4,15 @@
 
 ## Description
 
-The Effect Requests Rate Limiter is a sophisticated rate limiting solution built on the [Effect](https://effect.website/) ecosystem. It provides intelligent rate limiting for HTTP requests with advanced features like dynamic gate control, quota monitoring, and smart delay optimization for concurrent requests.
+Intelligent HTTP request rate limiter for [Effect](https://effect.website/) with dynamic gate control, quota monitoring, and smart delay optimization.
 
-Key capabilities:
-- **Intelligent Gate Control**: Automatically closes/opens request flow based on rate limit headers and 429 responses
-- **Smart Delay Optimization**: Minimizes cascading delays when multiple concurrent requests hit rate limits
-- **Quota Monitoring**: Proactively handles quota exhaustion
-- **Configurable Retry Policies**: Supports custom retry strategies with exponential backoff
-
-## Features
-
-- 🚪 **Dynamic Gate Control**: Automatically manages request flow based on rate limit signals
-- ⚡ **Smart Concurrency**: Optimized delay handling for concurrent requests hitting rate limits
-- 🔄 **Flexible Retry Policies**: Configurable retry strategies with jittered exponential backoff
-- 📊 **Quota Awareness**: Proactive handling of request quotas using standard rate limit headers
-- 🎛️ **Effect RateLimiter Integration**: Accepts any Effect RateLimiter for additional request control
-- 🔧 **Header Schema Parsing**: Customizable parsing of rate limit headers (`retry-after`, `x-ratelimit-remaining`, `x-ratelimit-reset`)
-- 🚦 **Concurrency Control**: Maximum concurrent request limiting with semaphore-based control
+**Features:**
+- 🚪 **Smart Gate Control**: Auto-manages request flow based on rate limit headers and 429 responses
+- ⚡ **Optimized Delays**: Minimizes cascading waits for concurrent requests
+- 📊 **Quota Monitoring**: Proactive handling using `x-ratelimit-remaining`/`x-ratelimit-reset` headers
+- 🔄 **Flexible Retries**: Configurable retry policies with exponential backoff
+- 🎛️ **Effect Integration**: Works with any Effect RateLimiter
+- 🚦 **Concurrency Control**: Semaphore-based request limiting
 
 ## Installation
 
@@ -121,38 +113,39 @@ interface RequestsRateLimiterConfig {
 
 ### Rate Limiting Options
 
-You can control request flow using either:
-- **`effectRateLimiter`**: Full-featured Effect RateLimiter with various algorithms (fixed-window, sliding-window, token-bucket)
-- **`maxConcurrentRequests`**: Simple concurrent request limit using a semaphore
+- **`effectRateLimiter`**: Effect RateLimiter with algorithms (fixed-window, sliding-window, token-bucket)
+- **`maxConcurrentRequests`**: Simple concurrent request limit with semaphore
 
-These options can coexist, but typically you'll configure **one or the other** based on your needs:
-- Use `effectRateLimiter` for sophisticated rate limiting with time windows and algorithms
-- Use `maxConcurrentRequests` for simple concurrency control without time-based limits
+Typically configure **one or the other**: use `effectRateLimiter` for time-based limits, `maxConcurrentRequests` for simple concurrency.
 
-### Rate Limit Headers
+### Rate Limit Headers Schema
 
-The library supports **configurable** rate limit headers through a custom schema. You define which headers to parse and how to transform them. Common headers include:
-- `retry-after`: Time to wait before retrying (in seconds)
-- `x-ratelimit-remaining`: Remaining requests in current window  
-- `x-ratelimit-reset`: Time when the rate limit window resets (in seconds)
+The library uses a **configurable schema** to parse HTTP response headers into three standardized fields:
 
-The schema allows you to adapt to any API's specific header format and naming conventions.
+```ts
+{
+  /** Retry delay - used when receiving 429 responses */
+  readonly "retryAfter"?: Duration.Duration | undefined
+  /** Remaining request quota in the current window */
+  readonly "remainingRequestsQuota"?: number | undefined  
+  /** Time until the rate limit window resets */
+  readonly "resetAfter"?: Duration.Duration | undefined
+}
+```
 
-### Smart Gate Control
+**All fields optional** - without headers, only retry policy, Effect rate limiter, and concurrency limits apply.
 
-The rate limiter features intelligent gate control that:
-- **Closes the gate** when receiving 429 responses or when quota is exhausted
-- **Optimizes delays** for concurrent requests to avoid cascading waits
-- **Automatically reopens** the gate after the appropriate delay period
-- **Skips unnecessary waits** when sufficient time has already elapsed
+- **`retryAfter`**: Wait time after 429 responses
+- **`remainingRequestsQuota` + `resetAfter`**: Proactive quota management - gate closes when quota = 0
+- Schema transforms API headers (`x-ratelimit-remaining`, `retry-after`) to standardized fields
 
 ## How It Works
 
-1. **Request Interception**: All requests pass through the rate limiter gate
-2. **Header Analysis**: Response headers are parsed for rate limit information
-3. **Dynamic Control**: Gate closes when limits are hit, opens when safe to proceed
-4. **Smart Delays**: Concurrent requests are optimized to minimize total wait time
-5. **Retry Logic**: Failed requests are retried according to configured policy
+1. Requests pass through the rate limiter gate
+2. Response headers parsed for rate limit info
+3. Gate closes on 429/quota exhaustion, reopens after delay
+4. Smart delays optimize concurrent request timing
+5. Failed requests retry per configured policy
 
 ## Peer Dependencies
 
