@@ -15,16 +15,19 @@
     "pnpm": ">= 10.14.0"
   },
   "scripts": {
-    "clean": "rm -rf dist test/dist",
+    "clean": "rm -rf dist example/dist",
     "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build",
     "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
-    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./test/**/*.ts",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./example/**/*.ts ./test/**/*.ts",
     "autofix": "pnpm lint --fix",
     "changeset": "changeset",
     "version-packages": "pnpm changeset version && pnpm build",
     "release": "pnpm build && changeset publish",
     "ci:version": "pnpm changeset version && pnpm build",
-    "ci:publish": "pnpm release"
+    "ci:publish": "pnpm release",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "keywords": [],
   "author": "Andrea Simone Costa",
@@ -54,7 +57,9 @@
     "@changesets/cli": "^2.29.6",
     "@changesets/changelog-github": "^0.5.1",
     "tsx": "^4.20.4",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^2.0.0",
+    "@vitest/ui": "^2.0.0"
   },
   "publishConfig": {
     "access": "public"

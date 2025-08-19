@@ -1,35 +1,22 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./test",
-    "outDir": "./test/dist",
-    "tsBuildInfoFile": "./test/dist/.tsbuildinfo",
+    "noEmit": true,
     "lib": [
       "ES2023"
     ],
     "types": [
-      "node"
+      "node",
+      "vitest/globals"
     ]
   },
   "include": [
     "./test/**/*.ts",
+    "./src/**/*.ts"
   ],
   "exclude": [
     "./dist",
-    "./test/dist",
     "node_modules",
-    "build",
-    "lib",
-    "dist",
-    "**/*.d.ts.map",
-    ".git",
-    ".data",
-    "**/.*",
-    "**/*.tmp"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.src.json"
-    }
+    "**/*.d.ts.map"
   ]
 }
