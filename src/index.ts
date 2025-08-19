@@ -5,11 +5,18 @@ import { LogMessages } from "./logs.js"
 export interface HeadersSchema extends
   S.Schema<
     {
-      /** Retry delay */
+      /**
+       * Retry delay after a 429 (relative duration to wait before retrying)
+       */
       readonly "retryAfter"?: Duration.Duration | undefined
-      /** Remaining request quota in the current window */
+      /**
+       * Remaining request quota in the current window. When it reaches 0 and
+       * `resetAfter` is present the gate will proactively close for that duration.
+       */
       readonly "remainingRequestsQuota"?: S.Schema.Type<S.NonNegative> | undefined
-      /** Time until the rate limit window resets */
+      /**
+       * Time until the quota window resets (relative duration).
+       */
       readonly "resetAfter"?: Duration.Duration | undefined
     },
     Readonly<Record<string, string | undefined>>

@@ -131,11 +131,18 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 ```ts
 {
-  /** Retry delay - used when receiving 429 responses */
+  /**
+   * Retry delay after a 429 (relative duration to wait before retrying)
+   */
   readonly "retryAfter"?: Duration.Duration | undefined
-  /** Remaining request quota in the current window */
+  /**
+   * Remaining request quota in the current window. When it reaches 0 and
+   * `resetAfter` is present the gate will proactively close for that duration.
+   */
   readonly "remainingRequestsQuota"?: number | undefined
-  /** Time until the rate limit window resets */
+  /**
+   * Time until the quota window resets (relative duration).
+   */
   readonly "resetAfter"?: Duration.Duration | undefined
 }
 ```
@@ -144,6 +151,30 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 - **`retryAfter`**: Wait time after 429 responses
 - **`remainingRequestsQuota` + `resetAfter`**: Proactive quota management - gate closes when quota = 0
+
+#### Semantics of `retryAfter` and `resetAfter`
+
+Both `retryAfter` and `resetAfter` are interpreted as **relative durations** ("wait this long"), *not* absolute timestamps. If the upstream API returns an absolute time (epoch seconds, milliseconds, or a date string), convert it to a relative duration in the schema layer.
+
+Example: API returns `x-ratelimit-reset: 1734012345` (epoch seconds when the window resets):
+
+```ts
+const ResetAfterFromEpochSeconds = S.transform(
+  S.NumberFromString,
+  S.DurationFromMillis,
+  {
+    decode: (epochSeconds) => Math.max(epochSeconds * 1000 - Date.now(), 0),
+    encode: (durationMs) => Math.round((Date.now() + durationMs) / 1000)
+  }
+)
+
+const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
+  resetAfter: S.optional(ResetAfterFromEpochSeconds).pipe(S.fromKey("x-ratelimit-reset"))
+  // ... other fields
+}))
+```
+
+Do the same for a `Retry-After` header that provides an absolute date (convert to milliseconds difference). This keeps the rate limiter logic simple, always expecting a relative `Duration`.
 
 ## How It Works
 
