@@ -2,7 +2,9 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "composite": false,
+    // composite true per consentire la project reference
+    "composite": true,
+    "tsBuildInfoFile": "./example/.tsbuildinfo",
     "lib": [
       "ES2023"
     ],

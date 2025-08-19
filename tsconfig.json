@@ -1,0 +1,15 @@
+{
+  // Solution tsconfig: include buildable lib + example + test (editor graph completo)
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.src.json"
+    },
+    {
+      "path": "./tsconfig.example.json"
+    },
+    {
+      "path": "./tsconfig.test.json"
+    }
+  ]
+}
