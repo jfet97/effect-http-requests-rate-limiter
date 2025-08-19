@@ -8,7 +8,7 @@ export interface RateLimiterHeadersSchema extends
       /** Retry delay */
       readonly "retryAfter"?: Duration.Duration | undefined
       /** Remaining request quota in the current window */
-      readonly "remainingRequestsQuota"?: number | undefined
+      readonly "remainingRequestsQuota"?: S.Schema.Type<S.NonNegative> | undefined
       /** Time until the rate limit window resets */
       readonly "resetAfter"?: Duration.Duration | undefined
     },
