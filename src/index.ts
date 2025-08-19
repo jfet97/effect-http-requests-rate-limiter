@@ -2,7 +2,7 @@ import { HttpClient, type HttpClientError, type HttpClientRequest, HttpClientRes
 import { Console, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, type Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
-export interface RateLimiterHeadersSchema extends
+export interface HeadersSchema extends
   S.Schema<
     {
       /** Retry delay */
@@ -16,7 +16,9 @@ export interface RateLimiterHeadersSchema extends
   >
 {}
 
-export interface RateLimiterHeadersSchemaType extends S.Schema.Type<RateLimiterHeadersSchema> {}
+export function makeHeadersSchema(s: HeadersSchema): HeadersSchema {
+  return s
+}
 
 /**
  * Policy for retrying HTTP requests when they fail.
@@ -27,9 +29,13 @@ export interface RetryPolicy {
   <A, R>(_: Effect.Effect<A, HttpClientError.HttpClientError, R>): Effect.Effect<A, HttpClientError.HttpClientError, R>
 }
 
-export interface RequestsRateLimiterConfig {
+export function makeRetryPolicy(policy: RetryPolicy): RetryPolicy {
+  return policy
+}
+
+export interface Config {
   /** Schema for parsing rate limit headers from HTTP responses */
-  readonly rateLimiterHeadersSchema?: RateLimiterHeadersSchema
+  readonly rateLimiterHeadersSchema?: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
   readonly retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
@@ -38,11 +44,13 @@ export interface RequestsRateLimiterConfig {
   readonly maxConcurrentRequests?: number
 }
 
-export const makeRequestsRateLimiter = Effect.fn(
-  "makeRequestsRateLimiter"
+export const make = Effect.fn(
+  "makeHttpRequestsRateLimiter"
 )(
-  function*(config: RequestsRateLimiterConfig) {
-    const httpClient = yield* HttpClient.HttpClient
+  function*(config: Config) {
+    const httpClient = yield* HttpClient.HttpClient.pipe(
+      Effect.map(HttpClient.filterStatusOk)
+    )
 
     const parseHeaders = (res: HttpClientResponse.HttpClientResponse) =>
       pipe(
@@ -56,7 +64,11 @@ export const makeRequestsRateLimiter = Effect.fn(
         // Swallow errors and return an empty object if headers are not present
         // to not block requests with additional details
         Effect.orElseSucceed(() => ({})),
-        Effect.map((_) => _ satisfies RateLimiterHeadersSchemaType as RateLimiterHeadersSchemaType)
+        Effect.map((_) =>
+          _ satisfies S.Schema.Type<HeadersSchema> as S.Schema.Type<
+            HeadersSchema
+          >
+        )
       )
 
     const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
