@@ -1,25 +1,26 @@
-# Requests Rate Limiter
+# Effect Requests Rate Limiter
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/username/repo.svg?branch=master)](https://travis-ci.org/username/repo)
-[![Coverage Status](https://coveralls.io/repos/github/username/repo/badge.svg?branch=master)](https://coveralls.io/github/username/repo?branch=master)
 
 ## Description
 
-The Requests Rate Limiter is an effectful function that provides rate limiting functionality for web applications. It helps to prevent going over usage limits for a given resource, such as an API endpoint, and can be configured to detect `429` responses when the rate limit is exceeded for any reason.
+The Effect Requests Rate Limiter is a sophisticated rate limiting solution built on the [Effect](https://effect.website/) ecosystem. It provides intelligent rate limiting for HTTP requests with advanced features like dynamic gate control, quota monitoring, and smart delay optimization for concurrent requests.
 
-This is the type of a Requests Rate Limiter:
-```ts
-(req: Http.request.ClientRequest) => Http.request.ClientRequest
-```
+Key capabilities:
+- **Intelligent Gate Control**: Automatically closes/opens request flow based on rate limit headers and 429 responses
+- **Smart Delay Optimization**: Minimizes cascading delays when multiple concurrent requests hit rate limits
+- **Quota Monitoring**: Proactively handles quota exhaustion using `x-ratelimit-remaining` headers
+- **Configurable Retry Policies**: Supports custom retry strategies with exponential backoff
 
-[What is an effect?](https://effect.website/)
 ## Features
 
-- Configurable rate limiter (e.g., fixed window, token bucket)
-- Customizable retry policy
-- Customizable maximum of concurrent requests
-- Customizable schema for headers parsing
+- 🚪 **Dynamic Gate Control**: Automatically manages request flow based on rate limit signals
+- ⚡ **Smart Concurrency**: Optimized delay handling for concurrent requests hitting rate limits
+- 🔄 **Flexible Retry Policies**: Configurable retry strategies with jittered exponential backoff
+- 📊 **Quota Awareness**: Proactive handling of request quotas using standard rate limit headers
+- 🎛️ **Configurable Rate Limiting**: Support for various algorithms (fixed-window, token bucket, etc.)
+- 🔧 **Header Schema Parsing**: Customizable parsing of rate limit headers (`retry-after`, `x-ratelimit-remaining`, `x-ratelimit-reset`)
+- 🚦 **Concurrency Control**: Maximum concurrent request limiting with semaphore-based control
 
 ## Installation
 
@@ -27,45 +28,46 @@ This is the type of a Requests Rate Limiter:
 pnpm i effect-requests-rate-limiter
 ```
 
-## Example
+## Usage
 
 ```ts
+import { DevTools } from "@effect/experimental"
+import { HttpClientRequest } from "@effect/platform"
+import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
+import { Duration, Effect, RateLimiter, Schedule, Schema as S } from "effect"
 import { makeRequestsRateLimiter, type RetryPolicy } from "effect-requests-rate-limiter"
 
-// retryAfterMillis is needed to know how much time to wait before letting other requests pass after a 429 response
-//
-// remainingRequestsQuota and resetAfterMillis are needed to know how many requests are left before reaching the limit of the current window and when the limit will be reset
-const RateLimitHeadersSchema = S.Schema.Struct({
-  "retryAfterMillis": S.Schema.transform(
-    S.Schema.NumberFromString,
-    S.Schema.Number,
-    // from seconds to milliseconds
-    { encode: (n) => n / 1000, decode: (n) => n * 1000 }
-  ).pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("retry-after")
+// Define schema for parsing rate limit headers
+const RateLimitHeadersSchema = S.Struct({
+  retryAfter: S.optional(S.transform(
+    S.NumberFromString,
+    S.DurationFromMillis,
+    {
+      decode: (s) => s * 1000, // seconds to milliseconds
+      encode: (ms) => ms / 1000
+    }
+  )).pipe(S.fromKey("retry-after")),
+  remainingRequestsQuota: S.optional(S.compose(S.NumberFromString, S.NonNegative)).pipe(
+    S.fromKey("x-ratelimit-remaining")
   ),
-  "remainingRequestsQuota": S.Schema.NumberFromString.pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-remaining")
-  ),
-  "resetAfterMillis": S.Schema.transform(
-    S.Schema.NumberFromString,
-    S.Schema.Number,
-    // from seconds to milliseconds
-    { encode: (n) => n / 1000, decode: (n) => n * 1000 }
-  ).pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-reset")
-  )
+  resetAfter: S.optional(S.transform(
+    S.NumberFromString,
+    S.DurationFromMillis,
+    {
+      decode: (s) => s * 1000, // seconds to milliseconds
+      encode: (ms) => ms / 1000
+    }
+  )).pipe(S.fromKey("x-ratelimit-reset"))
 })
 
+// Configure retry policy for 429 responses
 const MyRetryPolicy = Effect.retry({
   schedule: Schedule.jittered(Schedule.exponential("200 millis")),
   while: (err) => err._tag === "ResponseError" && err.response.status === 429,
   times: 5
 }) satisfies RetryPolicy
 
+// Create Effect rate limiter
 const MyRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
@@ -73,26 +75,74 @@ const MyRateLimiter = RateLimiter.make({
 })
 
 const main = Effect.gen(function*($) {
+  const rateLimiter = yield* MyRateLimiter
 
+  // Create the requests rate limiter
   const requestsRateLimiter = yield* makeRequestsRateLimiter({
-    rateLimitHeadersSchema: RateLimitHeadersSchema,
+    rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: MyRetryPolicy,
-    rateLimiter: yield* MyRateLimiter,
+    effectRateLimiter: rateLimiter,
     maxConcurrentRequests: 4
   })
 
-  const aRequest = Http.request.get("https://jsonplaceholder.typicode.com/todos/1")
-  const rateLimitedRequest = requestRateLimiter(aRequest)
+  const req = HttpClientRequest.get("http://localhost:3000")
 
-  // ...
+  // Use the rate limiter to control requests
+  const limitedRequest = requestsRateLimiter.limit(req)
+
+  // Execute the rate-limited request
+  const response = yield* limitedRequest
+
+  // Handle response...
 })
 
 NodeRuntime.runMain(main.pipe(
-  // fetchOk or similar must be used so that non 2xx responses are considered errors
-  Effect.provideService(Http.client.Client, Http.client.fetchOk)
+  Effect.provide(NodeHttpClient.layer),
+  Effect.provide(DevTools.layer())
 ))
 ```
 
-## Peer dependencies
+## Configuration Options
 
-"@effect/platform", "@effect/schema", "effect"
+The `makeRequestsRateLimiter` function accepts the following configuration:
+
+```ts
+interface RequestsRateLimiterConfig {
+  /** Schema for parsing rate limit headers from HTTP responses */
+  rateLimiterHeadersSchema?: RateLimiterHeadersSchema
+  /** Retry policy to use when rate limit is exceeded (429 status) */
+  retryPolicy?: RetryPolicy
+  /** Effect rate limiter to control the number of concurrent outgoing requests */
+  effectRateLimiter?: RateLimiter.RateLimiter
+  /** Maximum number of concurrent requests allowed */
+  maxConcurrentRequests?: number
+}
+```
+
+### Rate Limit Headers
+
+The library expects standard HTTP rate limiting headers:
+- `retry-after`: Time to wait before retrying (in seconds)
+- `x-ratelimit-remaining`: Remaining requests in current window
+- `x-ratelimit-reset`: Time when the rate limit window resets (in seconds)
+
+### Smart Gate Control
+
+The rate limiter features intelligent gate control that:
+- **Closes the gate** when receiving 429 responses or when quota is exhausted
+- **Optimizes delays** for concurrent requests to avoid cascading waits
+- **Automatically reopens** the gate after the appropriate delay period
+- **Skips unnecessary waits** when sufficient time has already elapsed
+
+## How It Works
+
+1. **Request Interception**: All requests pass through the rate limiter gate
+2. **Header Analysis**: Response headers are parsed for rate limit information
+3. **Dynamic Control**: Gate closes when limits are hit, opens when safe to proceed
+4. **Smart Delays**: Concurrent requests are optimized to minimize total wait time
+5. **Retry Logic**: Failed requests are retried according to configured policy
+
+## Peer Dependencies
+
+- `effect`
+- `@effect/platform`
