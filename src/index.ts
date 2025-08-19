@@ -18,6 +18,11 @@ export interface RateLimiterHeadersSchema extends
 
 export interface RateLimiterHeadersSchemaType extends S.Schema.Type<RateLimiterHeadersSchema> {}
 
+/**
+ * Policy for retrying HTTP requests when they fail.
+ * Applied after rate limiting errors (429) are handled by the gate mechanism.
+ * Can implement exponential backoff, circuit breakers, or custom retry logic.
+ */
 export interface RetryPolicy {
   <A, R>(_: Effect.Effect<A, HttpClientError.HttpClientError, R>): Effect.Effect<A, HttpClientError.HttpClientError, R>
 }
