@@ -1,20 +1,19 @@
-name: Release
+name: Publish
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch: {}
 
 permissions:
-  contents: write
-  packages: write
-  pull-requests: write
+  contents: write # for creating git tags during publish
 
 jobs:
-  release:
-    name: Version & Publish
+  publish:
+    name: Publish to npm
     runs-on: ubuntu-latest
+    # Run only on manual dispatch OR on merge of the Release PR (title/message contains 'Version Packages')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'Version Packages')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,20 +32,16 @@ jobs:
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install deps
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release PR or Publish
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          version: pnpm version-packages
-          publish: pnpm release
+      - name: Build & Publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Echo published packages
-        if: steps.changesets.outputs.published == 'true'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Published packages: ${{ steps.changesets.outputs.publishedPackages }}"
+          if [ -z "$NPM_TOKEN" ]; then echo "NPM_TOKEN not set"; exit 1; fi
+          pnpm release
+
+      - name: Summary
+        run: echo "Publish step completed (trigger: ${{ github.event_name }})"
