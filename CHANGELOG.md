@@ -1,5 +1,11 @@
 # effect-requests-rate-limiter
 
+## 1.1.2
+
+### Patch Changes
+
+- [#5](https://github.com/jfet97/effect-requests-rate-limiter/pull/5) [`916f76c`](https://github.com/jfet97/effect-requests-rate-limiter/commit/916f76c95f8292bdd34ebfe378ab0af111def613) Thanks [@jfet97](https://github.com/jfet97)! - just some minor api enhancement
+
 ## 1.1.1
 
 ### Patch Changes
