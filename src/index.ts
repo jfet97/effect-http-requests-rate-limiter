@@ -5,12 +5,12 @@ import { LogMessages } from "./logs.js"
 export interface RateLimiterHeadersSchema extends
   S.Schema<
     {
-      /** retry delay in milliseconds */
-      readonly "retryAfterMillis"?: number | undefined
+      /** retry delay */
+      readonly "retryAfter"?: Duration.DurationInput | undefined
       /** remaining request quota in the current window */
-      readonly "remainingRequestsQuota"?: number | undefined
-      /** milliseconds until the rate limit window resets */
-      readonly "resetAfterMillis"?: number | undefined
+      readonly "remainingRequestsQuota"?: typeof S.NonNegative | undefined
+      /** time until the rate limit window resets */
+      readonly "resetAfter"?: Duration.DurationInput | undefined
     },
     Readonly<Record<string, string | undefined>>
   >
@@ -125,21 +125,22 @@ export const makeRequestsRateLimiter = Effect.fn(
           Effect.andThen(Effect.fnUntraced(function*(res) {
             const headers = yield* parseHeaders(res)
 
-            const { resetAfterMillis, remainingRequestsQuota } = headers
+            const { resetAfter, remainingRequestsQuota } = headers
 
             if (
-              typeof resetAfterMillis === "number" &&
+              resetAfter != null &&
               typeof remainingRequestsQuota === "number" &&
               remainingRequestsQuota === 0
             ) {
               // Suggest to close the gate for the amount of time specified in the header
               const startedAt = Duration.millis(Date.now())
+              const resetDuration = Duration.decode(resetAfter)
 
               yield* Effect.all([
-                PubSub.publish(pubsub, { toWait: Duration.millis(resetAfterMillis), startedAt }),
+                PubSub.publish(pubsub, { toWait: resetDuration, startedAt }),
                 Effect.logInfo(
                   LogMessages.suggestWait(
-                    Duration.millis(resetAfterMillis),
+                    resetDuration,
                     new Date(Duration.toMillis(startedAt)),
                     "end_of_quota"
                   )
@@ -156,20 +157,21 @@ export const makeRequestsRateLimiter = Effect.fn(
             Effect.fnUntraced(function*(err) {
               const headers = yield* parseHeaders(err.response)
 
-              const { retryAfterMillis } = headers
+              const { retryAfter } = headers
 
               if (
                 err.response.status === 429 &&
-                typeof retryAfterMillis === "number"
+                retryAfter != null
               ) {
                 // Suggest to close the gate for the amount of time specified in the header
                 const startedAt = Duration.millis(Date.now())
+                const retryDuration = Duration.decode(retryAfter)
 
                 yield* Effect.all([
-                  PubSub.publish(pubsub, { toWait: Duration.millis(retryAfterMillis), startedAt }),
+                  PubSub.publish(pubsub, { toWait: retryDuration, startedAt }),
                   Console.info(
                     LogMessages.suggestWait(
-                      Duration.millis(retryAfterMillis),
+                      retryDuration,
                       new Date(Duration.toMillis(startedAt)),
                       "429"
                     )
