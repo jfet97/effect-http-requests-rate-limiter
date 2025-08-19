@@ -29,27 +29,23 @@ import { NodeHttpClient, NodeRuntime } from "@effect/platform-node"
 import { Duration, Effect, RateLimiter, Schedule, Schema as S } from "effect"
 import { makeRequestsRateLimiter, type RetryPolicy } from "effect-requests-rate-limiter"
 
+// Helper for converting seconds to Duration
+const DurationFromSecondsString = S.transform(
+  S.NumberFromString,
+  S.DurationFromMillis,
+  {
+    decode: (s) => s * 1000,
+    encode: (ms) => ms / 1000
+  }
+)
+
 // Define schema for parsing rate limit headers
 const RateLimitHeadersSchema = S.Struct({
-  retryAfter: S.optional(S.transform(
-    S.NumberFromString,
-    S.DurationFromMillis,
-    {
-      decode: (s) => s * 1000, // seconds to milliseconds
-      encode: (ms) => ms / 1000
-    }
-  )).pipe(S.fromKey("retry-after")),
+  retryAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("retry-after")),
   remainingRequestsQuota: S.optional(S.compose(S.NumberFromString, S.NonNegative)).pipe(
     S.fromKey("x-ratelimit-remaining")
   ),
-  resetAfter: S.optional(S.transform(
-    S.NumberFromString,
-    S.DurationFromMillis,
-    {
-      decode: (s) => s * 1000, // seconds to milliseconds
-      encode: (ms) => ms / 1000
-    }
-  )).pipe(S.fromKey("x-ratelimit-reset"))
+  resetAfter: S.optional(DurationFromSecondsString).pipe(S.fromKey("x-ratelimit-reset"))
 })
 
 // Configure retry policy for 429 responses
