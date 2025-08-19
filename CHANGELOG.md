@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.2.0
+
+### Minor Changes
+
+- [`0d3f0ed`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/0d3f0ed2ff861c999d2540cbb7e0b95874dd008f) Thanks [@jfet97](https://github.com/jfet97)! - add utils to create the schema
+
 ## 0.1.0
 
 ### Minor Changes
