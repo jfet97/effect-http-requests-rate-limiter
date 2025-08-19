@@ -1,9 +1,9 @@
 import { HttpServerResponse } from "@effect/platform"
-import { Array, Duration, Effect, Layer, pipe, Ref } from "effect"
+import { type Array, Duration, Effect, Layer, pipe, Ref } from "effect"
 
 export interface MockServerConfig {
   readonly port: number
-  readonly responses: Array<MockResponse>
+  readonly responses: MockResponse[]
 }
 
 export interface MockResponse {
@@ -42,13 +42,13 @@ export const makeSuccessResponse = (): MockResponse => ({
 
 export interface MockServerStats {
   readonly requestCount: number
-  readonly requestTimes: Array<Date>
+  readonly requestTimes: Date[]
 }
 
 export const makeMockServer = (config: MockServerConfig) =>
   Effect.gen(function*() {
     const requestCountRef = yield* Ref.make(0)
-    const requestTimesRef = yield* Ref.make<Array<Date>>([])
+    const requestTimesRef = yield* Ref.make<Date[]>([])
     let currentResponseIndex = 0
 
     const getStats = (): Effect.Effect<MockServerStats> =>
@@ -70,7 +70,7 @@ export const makeMockServer = (config: MockServerConfig) =>
         yield* Ref.update(requestTimesRef, (times) => [...times, new Date()])
 
         const mockResponse = getNextResponse()
-        
+
         if (mockResponse.delay) {
           yield* Effect.sleep(mockResponse.delay)
         }

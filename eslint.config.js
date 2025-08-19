@@ -22,6 +22,7 @@ export default [
       "@typescript-eslint/no-redeclare": "off",
       "@typescript-eslint/no-magic-numbers": "off",
       "@typescript-eslint/prefer-function-type": "off",
+      "@typescript-eslint/strict-boolean-expressions": "off",
       "no-void": "off",
       "max-nested-callbacks": "off",
       "@effect/dprint": [

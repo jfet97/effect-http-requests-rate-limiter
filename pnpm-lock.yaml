@@ -29,6 +29,9 @@ importers:
       '@effect/platform-node':
         specifier: ^0.96.0
         version: 0.96.0(@effect/cluster@0.48.1(@effect/platform@0.90.4(effect@3.17.7))(@effect/rpc@0.69.0(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(@effect/sql@0.44.2(@effect/experimental@0.54.6(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(@effect/workflow@0.9.1(@effect/platform@0.90.4(effect@3.17.7))(@effect/rpc@0.69.0(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(effect@3.17.7))(effect@3.17.7))(@effect/platform@0.90.4(effect@3.17.7))(@effect/rpc@0.69.0(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(@effect/sql@0.44.2(@effect/experimental@0.54.6(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(effect@3.17.7)
+      '@effect/vitest':
+        specifier: ^0.13.5
+        version: 0.13.19(effect@3.17.7)(vitest@2.1.9)
       '@fastify/rate-limit':
         specifier: ^10.3.0
         version: 10.3.0
@@ -215,6 +218,12 @@ packages:
       '@effect/experimental': ^0.54.6
       '@effect/platform': ^0.90.4
       effect: ^3.17.7
+
+  '@effect/vitest@0.13.19':
+    resolution: {integrity: sha512-5Tixz44IuH+TgXk2WJFEXhdz2IlhrUfxdSagzqKr7qVERZceYvCYka2W+JCgf8pgajNX91fu24vjB0YjTFKNOQ==}
+    peerDependencies:
+      effect: ^3.10.19
+      vitest: ^2.0.5
 
   '@effect/workflow@0.9.1':
     resolution: {integrity: sha512-oXRhfWPpIJPBKaILVE/4EiYA9HrrD4RtQxb/R/EFbNWMfx4N7uGfeK2sYg4dAZU0qnWwqU9t5rmqi20j6IANeA==}
@@ -3114,6 +3123,11 @@ snapshots:
       '@effect/platform': 0.90.4(effect@3.17.7)
       effect: 3.17.7
       uuid: 11.1.0
+
+  '@effect/vitest@0.13.19(effect@3.17.7)(vitest@2.1.9)':
+    dependencies:
+      effect: 3.17.7
+      vitest: 2.1.9(@types/node@24.3.0)(@vitest/ui@2.1.9)
 
   '@effect/workflow@0.9.1(@effect/platform@0.90.4(effect@3.17.7))(@effect/rpc@0.69.0(@effect/platform@0.90.4(effect@3.17.7))(effect@3.17.7))(effect@3.17.7)':
     dependencies:

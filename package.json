@@ -59,7 +59,8 @@
     "tsx": "^4.20.4",
     "typescript": "^5.9.2",
     "vitest": "^2.0.0",
-    "@vitest/ui": "^2.0.0"
+    "@vitest/ui": "^2.0.0",
+    "@effect/vitest": "^0.13.5"
   },
   "publishConfig": {
     "access": "public"
