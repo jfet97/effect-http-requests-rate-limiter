@@ -4,7 +4,7 @@ import * as espree from "espree"
 
 export default [
   {
-    ignores: ["dist/**", "build/**", "docs/**", "**/*.md"]
+  ignores: ["dist/**", "build/**", "docs/**", "**/*.md", "eslint.config.js"]
   },
   // Specific override: lint this file as plain JS (Espree), without the type-aware parser
   {
