@@ -1,23 +1,26 @@
-name: Release
+name: CI
 
 on:
+  pull_request:
+    branches: [ main ]
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CI: true
   PNPM_CACHE_FOLDER: .pnpm-store
 
 permissions:
-  contents: write
-  pull-requests: write
-  packages: write
+  contents: read
 
 jobs:
-  quality:
-    name: Quality (tests + build)
+  test:
+    name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -26,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,7 +42,7 @@ jobs:
       - name: Ensure pnpm on PATH
         run: pnpm --version
 
-      - name: Get pnpm store directory
+      - name: Get pnpm store path
         id: pnpm-cache
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
@@ -51,12 +54,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
+      - name: Install deps
         run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Lint
         run: pnpm lint
@@ -64,21 +63,18 @@ jobs:
       - name: Run tests
         run: pnpm test:run
 
-      - name: Build (type-check + emit)
-        run: pnpm build
-
-  version:
-    name: Version & Publish
-    needs: quality
-    timeout-minutes: 15
+  build:
+    name: Build
     runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -88,8 +84,10 @@ jobs:
         with:
           version: 10
           run_install: false
+      - name: Ensure pnpm on PATH
+        run: pnpm --version
 
-      - name: Get pnpm store directory
+      - name: Get pnpm store path
         id: pnpm-cache
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
@@ -101,20 +99,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
+      - name: Install deps
         run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create and publish versions
-        uses: changesets/action@v1
+      - name: Lint (repeat to ensure build sees generated artifacts consistency)
+        run: pnpm lint
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
         with:
-          version: pnpm ci:version
-          commit: "chore: update versions"
-          title: "chore: update versions"
-          publish: pnpm ci:publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          name: dist
+          path: dist
+          if-no-files-found: error
