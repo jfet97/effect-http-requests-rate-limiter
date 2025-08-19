@@ -115,7 +115,7 @@ export interface Config {
   /** HTTP client to use for making requests */
   httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
-  readonly rateLimiterHeadersSchema?: HeadersSchema
+  readonly rateLimiterHeadersSchema: HeadersSchema
   /** Retry policy to use when rate limit is exceeded (429 status) */
   readonly retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
@@ -135,9 +135,8 @@ export const make = Effect.fn(
 
     const parseHeaders = (res: HttpClientResponse.HttpClientResponse) =>
       pipe(
-        config.rateLimiterHeadersSchema,
-        Effect.fromNullable,
-        Effect.andThen((schema) => HttpClientResponse.schemaHeaders(schema)(res)),
+        res,
+        HttpClientResponse.schemaHeaders(config.rateLimiterHeadersSchema),
         Effect.tapErrorTag(
           "ParseError",
           (error) => Effect.logError(`Failed to parse rate limit headers: ${error.message}`)

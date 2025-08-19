@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Fiber, RateLimiter, Schedule, TestClock } from "effect"
+import { Duration, Effect, Fiber, RateLimiter, Schedule, Schema as S, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -31,7 +31,8 @@ describe("Concurrency and Retry", () => {
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         httpClient: mockClient,
-        maxConcurrentRequests: 3
+        maxConcurrentRequests: 3,
+        rateLimiterHeadersSchema: S.Struct({})
       })
 
       // Launch 6 concurrent requests
@@ -77,7 +78,8 @@ describe("Concurrency and Retry", () => {
 
       const rateLimiter = yield* HttpRequestsRateLimiter.make({
         httpClient: mockClient,
-        effectRateLimiter
+        effectRateLimiter,
+        rateLimiterHeadersSchema: S.Struct({})
       })
 
       // First two requests should succeed immediately

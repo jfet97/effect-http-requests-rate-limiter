@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Schedule, TestClock } from "effect"
+import { Duration, Effect, Schedule, Schema as S, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -45,7 +45,8 @@ describe("Retry Policy (no retry-after header)", () => {
 
       const limiter = yield* HttpRequestsRateLimiter.make({
         httpClient: mockClient,
-        retryPolicy
+        retryPolicy,
+        rateLimiterHeadersSchema: S.Struct({})
       })
 
       const fiber = yield* Effect.fork(limiter.limit(HttpClientRequest.get("http://test.com")))
