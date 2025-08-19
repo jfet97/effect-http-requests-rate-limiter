@@ -169,7 +169,17 @@ const DurationFromSeconds = S.transform(
   }
 )
 
-// 2) Header gives EPOCH milliseconds (e.g. x-ratelimit-reset: "1734012345123")
+// 2) Header gives EPOCH seconds (e.g. x-ratelimit-reset: "1734012345")
+const DurationFromEpochSeconds = S.transform(
+  S.NumberFromString,
+  S.DurationFromMillis,
+  {
+    decode: (epochS) => Math.max(epochS * 1000 - Date.now(), 0),
+    encode: (ms) => Math.floor((Date.now() + ms) / 1000)
+  }
+)
+
+// 3) Header gives EPOCH milliseconds (e.g. x-ratelimit-reset: "1734012345123")
 const DurationFromEpochMillis = S.transform(
   S.NumberFromString,
   S.DurationFromMillis,
@@ -179,7 +189,7 @@ const DurationFromEpochMillis = S.transform(
   }
 )
 
-// 3) Header gives HTTP date (e.g. Retry-After: "Wed, 21 Oct 2015 07:28:00 GMT")
+// 4) Header gives HTTP date (e.g. Retry-After: "Wed, 21 Oct 2015 07:28:00 GMT")
 const DurationFromHttpDate = S.transform(
   S.String,
   S.DurationFromMillis,
@@ -191,6 +201,8 @@ const DurationFromHttpDate = S.transform(
 ```
 
 Rule: end up with a `Duration` that represents "time to wait from now".
+
+Note: only `decode` matters for the limiter; `encode` is illustrative and not a round‑trip: time passes so exact reversibility is irrelevant here.
 
 ## How It Works
 
