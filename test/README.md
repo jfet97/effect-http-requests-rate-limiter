@@ -1,52 +1,52 @@
 # Tests
 
-Test suite per il rate limiter Effect requests.
+Test suite for the Effect HTTP requests rate limiter.
 
-## Struttura
+## Structure
 
 ```
 test/
-├── __helpers__/          # Utilities e helper per i test
-│   ├── mock-server.ts    # Mock server Effect-based 
-│   └── scenarios.ts      # Scenari predefiniti
-├── unit/                 # Test unitari
-│   ├── headers-parsing.test.ts          # Parsing e fallback headers
+├── __helpers__/          # Utilities & helpers for tests
+│   ├── mock-server.ts    # Effect-based mock server
+│   └── scenarios.ts      # Predefined scenarios
+├── unit/                 # Unit tests
+│   ├── headers-parsing.test.ts          # Header parsing & fallbacks
 │   ├── gate-mechanism.test.ts           # Gate, 429, quota exhausted, batching wait
-│   ├── concurrency-and-retry.test.ts    # Concurrency + retry con retry-after
-│   ├── retry-policy-no-retry-after.test.ts # Retry policy senza header retry-after
-│   └── combined-limits.test.ts          # Interazione maxConcurrent + effectRateLimiter
-├── integration/          # Test di integrazione
+│   ├── concurrency-and-retry.test.ts    # Concurrency + retry with retry-after
+│   ├── retry-policy-no-retry-after.test.ts # Retry policy without retry-after header
+│   └── combined-limits.test.ts          # Interaction maxConcurrent + effectRateLimiter
+├── integration/          # Integration tests
 │   └── end-to-end.test.ts
-└── performance/          # (placeholder per eventuali benchmark futuri)
+└── performance/          # (placeholder for possible future benchmarks)
 ```
 
-## Comandi
+## Commands
 
 ```bash
-# Esegui tutti i test
+# Run all tests
 pnpm test
 
-# Esegui test con UI
+# Run tests with UI
 pnpm test:ui
 
-# Esegui test una volta sola (per CI)
+# Run tests once (for CI)
 pnpm test:run
 ```
 
-## Strategia di Testing
+## Testing Strategy
 
-- **TestClock**: Controllo deterministico del tempo per gate, retry e rate windows.
-- **Mock HTTP Layer**: Ogni test costruisce un HttpClient simulando headers / status specifici.
-- **Gate Mechanism**: Coperti quota esaurita e 429 multipli (batching delay + sblocco corretto).
-- **Retry Policy**: Casi con header retry-after e senza (policy efficace comunque).
-- **Concurrency**: maxConcurrentRequests (semaforo), effectRateLimiter (token/time window) e combinazione.
-- **Robustezza**: Verifica che errori di parsing headers non blocchino le richieste.
+- **TestClock**: Deterministic time control for gate, retry, and rate windows.
+- **Mock HTTP Layer**: Each test builds an HttpClient simulating specific headers / statuses.
+- **Gate Mechanism**: Covers exhausted quota and multiple 429s (batched delay + correct reopening).
+- **Retry Policy**: Cases with and without retry-after header (policy still effective).
+- **Concurrency**: maxConcurrentRequests (semaphore), effectRateLimiter (token/time window), and their combination.
+- **Robustness**: Ensures header parsing errors do not block requests.
 
 ## Test Pattern
 
 ```ts
 import { Effect, Duration, Fiber, TestClock } from "effect"
-import * as HttpRequestsRateLimiter from "../../src" // es.
+import * as HttpRequestsRateLimiter from "../../src" // example
 
 const program = Effect.gen(function*() {
   const limiter = yield* HttpRequestsRateLimiter.make({ maxConcurrentRequests: 2 })
@@ -57,15 +57,15 @@ const program = Effect.gen(function*() {
   // expect(res.status).toBe(200)
 })
 
-// In un test: it.effect(() => program)
+// In a test: it.effect(() => program)
 ```
 
 ## TODO
 
 - [x] Concurrency limiting
-- [x] Retry policy (429 con e senza retry-after)
+- [x] Retry policy (429 with and without retry-after)
 - [x] Gate mechanism (quota + 429 + batching)
-- [x] Combinazione limiter esterno + semaforo interno
-- [ ] Performance / load (scenari high-volume + misure)
-- [ ] Test con server reale per scenari complessi (usare example/server)
-- [ ] Asserzioni sul logging (capturing LogMessages)
+- [x] Combination external limiter + internal semaphore
+- [ ] Performance / load (high-volume scenarios + measurements)
+- [ ] Tests with real server for complex scenarios (use example/server)
+- [ ] Assertions on logging (capturing LogMessages)
