@@ -2,7 +2,7 @@
   "name": "effect-requests-rate-limiter",
   "private": false,
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/jfet97/effect-requests-rate-limiter/"
@@ -18,13 +18,13 @@
     "clean": "rm -rf dist test/dist",
     "build": "pnpm clean && NODE_OPTIONS=--max-old-space-size=8192 tsc --build",
     "compile": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
-  "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./test/**/*.ts",
-  "autofix": "pnpm lint --fix",
-  "changeset": "changeset",
-  "version-packages": "pnpm changeset version && pnpm build",
-  "release": "pnpm build && changeset publish",
-  "ci:version": "pnpm changeset version && pnpm build",
-  "ci:publish": "pnpm release"
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 ESLINT_TS=1 eslint ./src/**/*.ts ./test/**/*.ts",
+    "autofix": "pnpm lint --fix",
+    "changeset": "changeset",
+    "version-packages": "pnpm changeset version && pnpm build",
+    "release": "pnpm build && changeset publish",
+    "ci:version": "pnpm changeset version && pnpm build",
+    "ci:publish": "pnpm release"
   },
   "keywords": [],
   "author": "Andrea Simone Costa",
