@@ -114,17 +114,29 @@ interface RequestsRateLimiterConfig {
   retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
   effectRateLimiter?: RateLimiter.RateLimiter
-  /** Maximum number of concurrent requests allowed */
+  /** Maximum number of concurrent requests allowed (simple alternative to effectRateLimiter) */
   maxConcurrentRequests?: number
 }
 ```
 
+### Rate Limiting Options
+
+You can control request flow using either:
+- **`effectRateLimiter`**: Full-featured Effect RateLimiter with various algorithms (fixed-window, sliding-window, token-bucket)
+- **`maxConcurrentRequests`**: Simple concurrent request limit using a semaphore
+
+These options can coexist, but typically you'll configure **one or the other** based on your needs:
+- Use `effectRateLimiter` for sophisticated rate limiting with time windows and algorithms
+- Use `maxConcurrentRequests` for simple concurrency control without time-based limits
+
 ### Rate Limit Headers
 
-The library expects standard HTTP rate limiting headers:
+The library supports **configurable** rate limit headers through a custom schema. You define which headers to parse and how to transform them. Common headers include:
 - `retry-after`: Time to wait before retrying (in seconds)
-- `x-ratelimit-remaining`: Remaining requests in current window
+- `x-ratelimit-remaining`: Remaining requests in current window  
 - `x-ratelimit-reset`: Time when the rate limit window resets (in seconds)
+
+The schema allows you to adapt to any API's specific header format and naming conventions.
 
 ### Smart Gate Control
 
