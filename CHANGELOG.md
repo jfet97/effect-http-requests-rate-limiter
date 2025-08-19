@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.1.0
+
+### Minor Changes
+
+- [`7b34d65`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/7b34d656cd1339f47092a4982aeaaa29459714fb) Thanks [@jfet97](https://github.com/jfet97)! - pass httpclient from config
+
 ## 0.0.4
 
 ### Patch Changes
