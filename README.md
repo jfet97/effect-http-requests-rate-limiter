@@ -41,7 +41,8 @@ const DurationFromSecondsString = S.transform(
 
 const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
 
-// Define schema for parsing rate limit headers
+// Define schema for extracting relevant fields from the HTTP response headers
+// Adjust it to match the API you integrate with.
 const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struct({
   retryAfter: S.optional(DurationFromSecondsString).pipe(
     S.fromKey("retry-after")
@@ -54,7 +55,7 @@ const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema(S.Struc
   )
 }))
 
-// Configure retry policy for 429 responses
+// Configure retry policy for errors
 const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
   schedule: Schedule.jittered(Schedule.exponential("200 millis")),
   while: (err) => err._tag === "ResponseError" && err.response.status === 429,
@@ -76,7 +77,7 @@ const main = Effect.gen(function*() {
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter,
-    maxConcurrentRequests: 4
+    // maxConcurrentRequests: 4
   })
 
   const req = HttpClientRequest.get("http://localhost:3000")
@@ -114,12 +115,12 @@ interface Config {
 
 ## Helper Functions
 
-- **`makeHeadersSchema(schema)`**: Type-safe wrapper for creating header schemas
-- **`makeRetryPolicy(policy)`**: Type-safe wrapper for creating retry policies
+- **`makeHeadersSchema(schema)`**: Util for creating header schemas
+- **`makeRetryPolicy(policy)`**: Util for creating retry policies
 
 ### Rate Limiting Options
 
-- **`effectRateLimiter`**: Effect RateLimiter with algorithms (fixed-window, sliding-window, token-bucket)
+- **`effectRateLimiter`**: Effect `RateLimiter` with algorithms (fixed-window, sliding-window, token-bucket)
 - **`maxConcurrentRequests`**: Simple concurrent request limit with semaphore
 
 Typically configure **one or the other**: use `effectRateLimiter` for time-based limits, `maxConcurrentRequests` for simple concurrency.
@@ -143,16 +144,14 @@ The library uses a **configurable schema** to parse HTTP response headers into t
 
 - **`retryAfter`**: Wait time after 429 responses
 - **`remainingRequestsQuota` + `resetAfter`**: Proactive quota management - gate closes when quota = 0
-- Schema transforms API headers (`x-ratelimit-remaining`, `retry-after`) to standardized fields
 
 ## How It Works
 
-1. **Non-2xx Error Enforcement**: All non-2xx HTTP responses are automatically treated as Effect errors via `HttpClient.filterStatusOk`
-2. Requests pass through the rate limiter gate
-3. Response headers parsed for rate limit info
-4. Gate closes on 429/quota exhaustion, reopens after delay
-5. Smart delays optimize concurrent request timing
-6. Failed requests retry per configured policy
+1. Requests pass through the rate limiter gate
+2. Response headers parsed for rate limit info
+3. Gate closes on 429/quota exhaustion, reopens after delay
+4. Smart delays optimize concurrent request timing
+5. Failed requests retry per configured policy
 
 ## Important Notes
 
