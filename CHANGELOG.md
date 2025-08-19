@@ -1,5 +1,10 @@
 # effect-http-requests-rate-limiter
 
+## 0.0.3
+
+### Patch Changes
+
+- [#7](https://github.com/jfet97/effect-http-requests-rate-limiter/pull/7) [`0fe021d`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/0fe021de0b48167def41321e29e72ea8156a9a62) Thanks [@jfet97](https://github.com/jfet97)! - add tests
 
 ## 1.1.2
 
