@@ -23,6 +23,7 @@ export default [
       "@typescript-eslint/no-magic-numbers": "off",
       "@typescript-eslint/prefer-function-type": "off",
       "no-void": "off",
+      "max-nested-callbacks": "off",
       "@effect/dprint": [
         "error",
         {

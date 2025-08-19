@@ -23,6 +23,11 @@
     "downlevelIteration": true,
     "noErrorTruncation": true,
     "forceConsistentCasingInFileNames": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
   },
   "files": [],
   "include": [],

@@ -1,9 +1,9 @@
 import { DevTools } from "@effect/experimental"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { NodeRuntime } from "@effect/platform-node"
-import * as S from "@effect/schema"
-import { Array, Console, Duration, Effect, Random, RateLimiter, Schedule } from "effect"
-import { makeRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
+
+import { Array, Console, Duration, Effect, Random, RateLimiter, Schedule, Schema as S } from "effect"
+import { buildRequestsRateLimiter, type RetryPolicy } from "../src/index.js"
 
 // helper
 
@@ -13,28 +13,28 @@ export const logTime = Effect
 
 // test
 
-const RateLimitHeadersSchema = S.Schema.Struct({
-  "retryAfterMillis": S.Schema.transform(
-    S.Schema.NumberFromString,
-    S.Schema.Number,
+const RateLimitHeadersSchema = S.Struct({
+  "retryAfterMillis": S.transform(
+    S.NumberFromString,
+    S.Number,
     // from seconds to milliseconds
     { encode: (n) => n / 1000, decode: (n) => n * 1000 }
   ).pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("retry-after")
+    S.optional(),
+    S.fromKey("retry-after")
   ),
-  "remainingRequestsQuota": S.Schema.NumberFromString.pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-remaining")
+  "remainingRequestsQuota": S.NumberFromString.pipe(
+    S.optional(),
+    S.fromKey("x-ratelimit-remaining")
   ),
-  "resetAfterMillis": S.Schema.transform(
-    S.Schema.NumberFromString,
-    S.Schema.Number,
+  "resetAfterMillis": S.transform(
+    S.NumberFromString,
+    S.Number,
     // from seconds to milliseconds
     { encode: (n) => n / 1000, decode: (n) => n * 1000 }
   ).pipe(
-    S.Schema.optional(),
-    S.Schema.fromKey("x-ratelimit-reset")
+    S.optional(),
+    S.fromKey("x-ratelimit-reset")
   )
 })
 
@@ -55,15 +55,16 @@ const req = HttpClientRequest.get("http://localhost:3000")
 const main = Effect.gen(function*($) {
   const rateLimiter = yield* MyRateLimiter
 
-  const requestsRateLimiter = yield* makeRequestsRateLimiter({
+  const requestsRateLimiter = yield* buildRequestsRateLimiter({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: MyRetryPolicy,
     effectRateLimiter: rateLimiter,
     maxConcurrentRequests: 4
   })
 
+
   const reqEffect = $(
-    requestsRateLimiter(req),
+    requestsRateLimiter.limit(req),
     HttpClientResponse.json,
     Effect.andThen((_) => Console.log(_)),
     Effect.andThen(logTime),

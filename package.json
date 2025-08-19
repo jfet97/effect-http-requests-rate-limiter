@@ -31,6 +31,7 @@
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
     "@effect/experimental": "^0.54.6",
+    "@effect/language-service": "^0.35.2",
     "@effect/platform": "^0.90.4",
     "@effect/platform-node": "^0.96.0",
     "@fastify/rate-limit": "^10.3.0",
@@ -59,5 +60,7 @@
       }
     }
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }
