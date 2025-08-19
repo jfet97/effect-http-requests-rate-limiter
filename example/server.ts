@@ -6,7 +6,7 @@ const fastify = Fastify({ logger: true })
 
 await fastify.register(rateLimit, {
   max: 5,
-  timeWindow: "3 seconds"
+  timeWindow: "10 seconds"
 })
 
 fastify.get("/", async (_req, reply) => {

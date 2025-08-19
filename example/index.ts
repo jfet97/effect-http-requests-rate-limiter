@@ -43,9 +43,9 @@ const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
 }))
 
 const EffectRateLimiter = RateLimiter.make({
-  limit: 5,
+  limit: 50,
   algorithm: "fixed-window",
-  interval: Duration.seconds(3)
+  interval: Duration.seconds(10)
 })
 
 const req = HttpClientRequest.get("http://localhost:3000")
@@ -57,7 +57,7 @@ const main = Effect.gen(function*() {
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
     retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter,
-    maxConcurrentRequests: 4
+    // maxConcurrentRequests: 4
   })
 
   const reqEffect = pipe(

@@ -120,7 +120,7 @@ export const make = Effect.fn(
                 )
               )
               : Effect.suspend(() =>
-                Console.info(
+                Effect.logInfo(
                   LogMessages.ignoredSuggestedWait(toWait, new Date(Duration.toMillis(startedAt)))
                 )
               )
@@ -184,7 +184,7 @@ export const make = Effect.fn(
 
                 yield* Effect.all([
                   PubSub.publish(pubsub, { toWait: retryAfter, startedAt }),
-                  Console.info(
+                  Effect.logInfo(
                     LogMessages.suggestWait(
                       retryAfter,
                       new Date(Duration.toMillis(startedAt)),
