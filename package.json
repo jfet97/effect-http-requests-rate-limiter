@@ -27,7 +27,8 @@
     "ci:publish": "pnpm release",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "example": "concurrently --kill-others-on-fail --raw \"tsx example/server.ts | grep 'Server listening' || true\" \"sleep 2 && tsx example/index.ts\""
   },
   "keywords": [],
   "author": "Andrea Simone Costa",
@@ -50,6 +51,7 @@
     "@types/node": "^24.3.0",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@vitest/ui": "^2.0.0",
+    "concurrently": "^9.2.0",
     "effect": "^3.17.7",
     "eslint": "^9.33.0",
     "eslint-config-love": "^121.0.0",
