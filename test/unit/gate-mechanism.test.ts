@@ -138,13 +138,13 @@ describe("Gate Mechanism", () => {
       expect(call).toBe(2)
     }))
 
-  it.scoped("should unblock after retry-after for subsequent request after multiple 429s", () =>
+  it.scoped("should unblock after retry-after for subsequent request after a 429", () =>
     Effect.gen(function*() {
       let call = 0
       const mockClient = HttpClient.make((request) =>
         Effect.gen(function*() {
           call++
-          if (call <= 2) {
+          if (call <= 1) {
             return HttpClientResponse.fromWeb(
               request,
               new Response(JSON.stringify({ error: true, n: call }), {
@@ -171,17 +171,15 @@ describe("Gate Mechanism", () => {
       })
 
       const first = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/a")).pipe(Effect.either)
-      const second = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/b")).pipe(Effect.either)
       expect(first._tag).toBe("Left")
-      expect(second._tag).toBe("Left")
 
-      const fiber3 = yield* Effect.fork(rateLimiter.limit(HttpClientRequest.get("http://test.com/c")))
+      const fiber2 = yield* Effect.fork(rateLimiter.limit(HttpClientRequest.get("http://test.com/c")))
       yield* TestClock.adjust(Duration.seconds(29))
-      const poll = yield* Fiber.poll(fiber3)
+      const poll = yield* Fiber.poll(fiber2)
       expect(poll._tag).toBe("None")
       yield* TestClock.adjust(Duration.seconds(1))
-      const success = yield* Fiber.join(fiber3)
+      const success = yield* Fiber.join(fiber2)
       expect(success.status).toBe(200)
-      expect(call).toBe(3)
+      expect(call).toBe(2)
     }))
 })

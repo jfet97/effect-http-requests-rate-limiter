@@ -157,7 +157,10 @@ export const make = Effect.fn(
       )
 
     const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
-      gate: Effect.makeLatch(true),
+      // Using 1-permit semaphore instead of a latch:
+      // 1. FIFO fairness
+      // 2. avoids releasing all fibers at once causing contention/trashing
+      gate: Effect.makeSemaphore(1),
       concurrencyLimiter: pipe(
         config.maxConcurrentRequests,
         Effect.fromNullable,
@@ -186,24 +189,15 @@ export const make = Effect.fn(
             const now = Duration.millis(Date.now())
             const elapsedTime = Duration.subtract(now, startedAt)
             return Duration.lessThan(elapsedTime, toWait)
-              ? pipe(
-                Effect.all([
-                  gate.close,
-                  Effect.logInfo(
-                    LogMessages.closingGate(
-                      Duration.subtract(toWait, elapsedTime),
-                      new Date(Duration.toMillis(now))
-                    )
-                  )
-                ], { concurrency: 2 }),
+              ? Effect.logInfo(
+                LogMessages.closingGate(
+                  Duration.subtract(toWait, elapsedTime),
+                  new Date(Duration.toMillis(now))
+                )
+              ).pipe(
                 Effect.andThen(Effect.sleep(Duration.subtract(toWait, elapsedTime))),
-                Effect.andThen(
-                  Effect.all([
-                    gate.open,
-                    Effect.logInfo(LogMessages.gateIsOpen())
-                  ], { concurrency: 2 })
-                ),
-                Effect.withSpan("HttpRequestsRateLimiter.gate.wait")
+                gate.withPermits(1),
+                Effect.andThen(Effect.logInfo(LogMessages.gateIsOpen()))
               )
               : pipe(
                 Effect.logInfo(
@@ -223,8 +217,8 @@ export const make = Effect.fn(
     return {
       limit: (req: HttpClientRequest.HttpClientRequest) =>
         pipe(
-          req,
-          httpClient.execute,
+          // Wait for gate to be open before executing the request
+          Effect.zipRight(gate.withPermits(1)(Effect.void), httpClient.execute(req)),
           concurrencyLimiter?.withPermits(1) ?? identity,
           config.effectRateLimiter ?? identity,
           Effect.andThen(
@@ -252,8 +246,6 @@ export const make = Effect.fn(
               return res
             })
           ),
-          // Wait for gate to be open before executing the request
-          gate.whenOpen,
           Effect.catchTag(
             "ResponseError",
             Effect.fn("HttpRequestsRateLimiter.limit.handleResponseError")(function*(err) {
