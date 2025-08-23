@@ -16,7 +16,7 @@ fastify.get("/", async (_req, reply) => {
 })
 
 await fastify
-  .listen({ port: 3000 })
+  .listen({ port: 5678 })
   .then(() => {
     fastify.log.info("Server listening at http://localhost:3000")
   })
