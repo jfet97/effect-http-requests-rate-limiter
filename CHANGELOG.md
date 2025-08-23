@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.2.2
+
+### Patch Changes
+
+- [#14](https://github.com/jfet97/effect-http-requests-rate-limiter/pull/14) [`6aab801`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/6aab801a1fa6b8c46e25328ad489b3d0ca9887e4) Thanks [@jfet97](https://github.com/jfet97)! - use sem instead of latch because of contention and FIFO behaviour
+
 ## 0.2.1
 
 ### Patch Changes
