@@ -157,8 +157,9 @@ export const make = Effect.fn(
       )
 
     const { gate, concurrencyLimiter, pubsub } = yield* Effect.all({
-      // using a semaphore instead of a latch
-      // 1‑permit semaphore as gate: FIFO fairness; avoids releasing all fibers at once causing contention/trashing
+      // Using 1-permit semaphore instead of a latch:
+      // 1. FIFO fairness
+      // 2. avoids releasing all fibers at once causing contention/trashing
       gate: Effect.makeSemaphore(1),
       concurrencyLimiter: pipe(
         config.maxConcurrentRequests,
