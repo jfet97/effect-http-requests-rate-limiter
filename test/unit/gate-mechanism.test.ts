@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
 import { it } from "@effect/vitest"
-import { Duration, Effect, Fiber, TestClock } from "effect"
+import { Duration, Effect, Fiber, Schema, TestClock } from "effect"
 import { describe, expect } from "vitest"
 
 import * as HttpRequestsRateLimiter from "../../src/index.js"
@@ -191,10 +191,10 @@ describe("Gate Mechanism", () => {
               request,
               new Response(JSON.stringify({ success: true, firstRequest: true }), {
                 status: 200,
-                statusText: "OK", 
+                statusText: "OK",
                 headers: {
                   "x-ratelimit-remaining": "0", // Quota exhausted
-                  "x-ratelimit-reset": "30"     // Reset in 30 seconds
+                  "x-ratelimit-reset": "30" // Reset in 30 seconds
                 }
               })
             )
@@ -221,29 +221,31 @@ describe("Gate Mechanism", () => {
       // First request should succeed and trigger quota exhaustion gate closure
       const res1 = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com/first"))
       expect(res1.status).toBe(200)
-      const body1 = yield* res1.json
+      const FirstRespSchema = Schema.Struct({ firstRequest: Schema.Boolean })
+      const body1 = yield* Schema.decodeUnknown(FirstRespSchema)(yield* res1.json)
       expect(body1.firstRequest).toBe(true)
 
       // Second request should be immediately blocked by the gate due to quota exhaustion
       const fiber2 = yield* Effect.fork(rateLimiter.execute(HttpClientRequest.get("http://test.com/second")))
-      
+
       // Should still be waiting after a short time (gate is closed)
       yield* TestClock.adjust(Duration.seconds(5))
       const stillWaiting = yield* Fiber.poll(fiber2)
       expect(stillWaiting._tag).toBe("None") // Still waiting
-      
+
       // Should still be waiting even after 29 seconds (just before the gate reopens)
       yield* TestClock.adjust(Duration.seconds(24))
       const stillWaitingAlmost = yield* Fiber.poll(fiber2)
       expect(stillWaitingAlmost._tag).toBe("None") // Still waiting
-      
+
       // After the full 30 seconds, gate should reopen and request should complete
       yield* TestClock.adjust(Duration.seconds(1))
       const res2 = yield* Fiber.join(fiber2)
       expect(res2.status).toBe(200)
-      const body2 = yield* res2.json
+      const SecondRespSchema = Schema.Struct({ secondRequest: Schema.Boolean })
+      const body2 = yield* Schema.decodeUnknown(SecondRespSchema)(yield* res2.json)
       expect(body2.secondRequest).toBe(true)
-      
+
       // Both requests should have been executed
       expect(call).toBe(2)
     }))
