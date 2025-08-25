@@ -29,15 +29,14 @@ describe("Concurrency and Retry", () => {
         })
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         maxConcurrentRequests: 3,
         rateLimiterHeadersSchema: S.Struct({})
       })
 
       // Launch 6 concurrent requests
       const requests = Array.from({ length: 6 }, () =>
-        Effect.fork(rateLimiter.limit(HttpClientRequest.get("http://test.com"))))
+        Effect.fork(rateLimiter.execute(HttpClientRequest.get("http://test.com"))))
 
       const fibers = yield* Effect.all(requests)
 
@@ -76,22 +75,21 @@ describe("Concurrency and Retry", () => {
         interval: Duration.seconds(10)
       })
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         effectRateLimiter,
         rateLimiterHeadersSchema: S.Struct({})
       })
 
       // First two requests should succeed immediately
-      const result1 = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
-      const result2 = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result1 = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
+      const result2 = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
 
       expect(result1.status).toBe(200)
       expect(result2.status).toBe(200)
 
       // Third request should be rate limited by Effect RateLimiter
       const fiber3 = yield* Effect.fork(
-        rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+        rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       )
 
       // Should still be waiting after short time
@@ -138,22 +136,18 @@ describe("Concurrency and Retry", () => {
         })
       )
 
-      const retryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(
-        Effect.retry({
+      const rateLimiter = (yield* HttpRequestsRateLimiter.make(mockClient, {
+        rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema
+      })).pipe(
+        HttpClient.retryTransient({
           schedule: Schedule.exponential("100 millis"),
           while: (err) => err._tag === "ResponseError" && err.response.status === 429,
           times: 2
         })
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
-        rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema,
-        retryPolicy
-      })
-
       const fiber = yield* Effect.fork(
-        rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+        rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       )
 
       // Wait for initial 429 + retry-after delay + retry attempts

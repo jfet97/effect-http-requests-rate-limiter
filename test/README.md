@@ -50,7 +50,7 @@ import * as HttpRequestsRateLimiter from "../../src" // example
 
 const program = Effect.gen(function*() {
   const limiter = yield* HttpRequestsRateLimiter.make({ maxConcurrentRequests: 2 })
-  const requestEffect = limiter.limit(/* HttpClientRequest */ req)
+  const requestEffect = limiter.execute(/* HttpClientRequest */ req)
   const fiber = yield* Effect.fork(requestEffect)
   yield* TestClock.adjust(Duration.seconds(30))
   const res = yield* Fiber.join(fiber)

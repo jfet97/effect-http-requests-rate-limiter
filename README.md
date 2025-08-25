@@ -42,44 +42,44 @@ const DurationFromSecondsString = S.transform(
 const NonNegativeFromString = S.compose(S.NumberFromString, S.NonNegative)
 
 // Define schema for extracting relevant fields from the HTTP response headers
-// Adjust it to match the API you integrate with.
 const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema({
   retryAfter: { fromKey: "retry-after", schema: DurationFromSecondsString },
   quotaRemainingRequests: { fromKey: "x-ratelimit-remaining", schema: NonNegativeFromString },
   quotaResetsAfter: { fromKey: "x-ratelimit-reset", schema: DurationFromSecondsString }
 })
 
-// Configure retry policy for errors
-const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
-  schedule: Schedule.jittered(Schedule.exponential("200 millis")),
-  while: (err) => err._tag === "ResponseError" && err.response.status === 429,
-  times: 5
-}))
-
 // Create Effect rate limiter
 const EffectRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
-  interval: Duration.seconds(3)
+  interval: Duration.seconds(10)
 })
 
 const main = Effect.gen(function*() {
-  const httpClient = yield* HttpClient.HttpClient
   const rateLimiter = yield* EffectRateLimiter
 
-  // Create the requests rate limiter
-  const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
-    httpClient,
+  // Option 1: Use makeWithContext (HTTP client from context)
+  const requestsRateLimiter = (yield* HttpRequestsRateLimiter.makeWithContext({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
-    retryPolicy: myRetryPolicy,
-    effectRateLimiter: rateLimiter,
+    effectRateLimiter: rateLimiter
     // maxConcurrentRequests: 4
-  })
+  })).pipe(HttpClient.retryTransient({
+    schedule: Schedule.jittered(Schedule.exponential("200 millis")),
+    while: (err) => err._tag === "ResponseError" && err.response.status === 429,
+    times: 5
+  }))
 
-  const req = HttpClientRequest.get("http://localhost:3000")
+  // Option 2: Use make (provide HTTP client manually)
+  // const httpClient = yield* HttpClient.HttpClient
+  // const requestsRateLimiter = yield* HttpRequestsRateLimiter.make(httpClient, {
+  //   rateLimiterHeadersSchema: RateLimitHeadersSchema,
+  //   effectRateLimiter: rateLimiter
+  // })
 
-  // Use the rate limiter to control requests
-  const response = yield* requestsRateLimiter.limit(req)
+  const req = HttpClientRequest.get("http://localhost:5678")
+
+  // Execute requests through the rate limiter
+  const response = yield* requestsRateLimiter.execute(req)
 
   // Handle response...
 }).pipe(Effect.scoped)
@@ -92,18 +92,39 @@ NodeRuntime.runMain(main.pipe(
 ))
 ```
 
-## Configuration Options
+## How It Works
 
-The `HttpRequestsRateLimiter.make` function accepts the following configuration:
+This library **transforms** an existing `HttpClient` into a rate-limited version by wrapping it with intelligent request management. Both functions return a new `HttpClient` that you can use exactly like the original, but with built-in rate limiting.
+
+```ts
+// Input: Regular HttpClient → Output: Rate-limited HttpClient
+const httpClient = yield* HttpClient.HttpClient
+const rateLimitedClient = yield* HttpRequestsRateLimiter.make(httpClient, config)
+
+// Use it exactly like any HttpClient
+const response = yield* rateLimitedClient.execute(request)
+```
+
+## API Overview
+
+The library provides two main functions for creating rate-limited HTTP clients:
+
+```ts
+// Option 1: Automatic HTTP client resolution from context
+const rateLimitedClient = yield* HttpRequestsRateLimiter.makeWithContext(config)
+
+// Option 2: Manual HTTP client provision
+const rateLimitedClient = yield* HttpRequestsRateLimiter.make(httpClient, config)
+```
+
+Both return an enhanced `HttpClient` with the same interface as the original.
+
+### Configuration Options
 
 ```ts
 interface Config {
-  /** HTTP client to use for making requests (required) */
-  httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
   rateLimiterHeadersSchema: HeadersSchema
-  /** Retry policy to use when rate limit is exceeded (429 status) */
-  retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
   effectRateLimiter?: RateLimiter.RateLimiter
   /** Maximum number of concurrent requests allowed */
@@ -114,7 +135,6 @@ interface Config {
 ## Helper Functions
 
 - **`makeHeadersSchema(fields)`**: Utility to build the headers schema (maps raw header names + decoding schemas to the three canonical fields). It also enforces that you configure either: (a) only `retryAfter`, (b) the pair `quotaRemainingRequests` + `quotaResetsAfter`, or (c) all three – this keeps intent clear while each decoded field remains optional at runtime if the header is actually absent.
-- **`makeRetryPolicy(policy)`**: Util for creating retry policies
 
 ### Rate Limiting Options
 
@@ -213,13 +233,13 @@ Rule: end up with a `Duration` that represents "time to wait from now".
 
 Note: only `decode` matters for the limiter; `encode` is illustrative and not a round‑trip: time passes so exact reversibility is irrelevant here.
 
-## How It Works
+## Internal Mechanism
 
-1. Requests pass through the rate limiter gate
-2. Response headers parsed for rate limit info
-3. Gate closes on 429/quota exhaustion, reopens after delay
-4. Smart delays optimize concurrent request timing
-5. Failed requests retry per configured policy
+1. **Request Gating**: All requests pass through a FIFO semaphore gate before reaching the underlying HttpClient
+2. **Header Analysis**: Response headers are parsed for rate limit info using your configurable schema
+3. **Adaptive Control**: Gate closes on 429/quota exhaustion, reopens after the specified delay
+4. **Smart Batching**: Multiple concurrent requests hitting limits share delays to avoid cascading waits
+5. **Transparent Interface**: The enhanced client maintains full HttpClient compatibility
 
 ## Important Notes
 

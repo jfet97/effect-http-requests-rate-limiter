@@ -36,14 +36,13 @@ describe("Combined Limits (effectRateLimiter + maxConcurrentRequests)", () => {
         interval: Duration.seconds(10)
       })
 
-      const limiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const limiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         effectRateLimiter,
         maxConcurrentRequests: 1,
         rateLimiterHeadersSchema: S.Struct({})
       })
 
-      const req = () => limiter.limit(HttpClientRequest.get("http://test.com"))
+      const req = () => limiter.execute(HttpClientRequest.get("http://test.com"))
 
       const f1 = yield* Effect.fork(req())
       const f2 = yield* Effect.fork(req())
