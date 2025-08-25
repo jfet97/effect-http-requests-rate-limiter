@@ -30,12 +30,6 @@ const RateLimitHeadersSchema = HttpRequestsRateLimiter.makeHeadersSchema({
   quotaResetsAfter: { fromKey: "x-ratelimit-reset", schema: DurationFromSecondsString }
 })
 
-const myRetryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(Effect.retry({
-  schedule: Schedule.jittered(Schedule.exponential("200 millis")),
-  while: (err) => err._tag === "ResponseError" && err.response.status === 429,
-  times: 5
-}))
-
 const EffectRateLimiter = RateLimiter.make({
   limit: 5,
   algorithm: "fixed-window",
@@ -46,21 +40,22 @@ const req = HttpClientRequest.get("http://localhost:5678")
 
 const main = Effect.gen(function*() {
   const rateLimiter = yield* EffectRateLimiter
-  const httpClient = yield* HttpClient.HttpClient
 
-  const requestsRateLimiter = yield* HttpRequestsRateLimiter.make({
-    httpClient,
+  const requestsRateLimiter = (yield* HttpRequestsRateLimiter.makeWithContext({
     rateLimiterHeadersSchema: RateLimitHeadersSchema,
-    retryPolicy: myRetryPolicy,
     effectRateLimiter: rateLimiter
     // maxConcurrentRequests: 4
-  })
+  })).pipe(HttpClient.retryTransient({
+    schedule: Schedule.jittered(Schedule.exponential("200 millis")),
+    while: (err) => err._tag === "ResponseError" && err.response.status === 429,
+    times: 5
+  }))
 
   const reqEffect = pipe(
-    requestsRateLimiter.limit(req),
+    requestsRateLimiter.execute(req),
     Effect.andThen((_) => Effect.logInfo("Response received")),
     Effect.andThen(logTime),
-    Effect.catchAll((err) => Effect.logError(err))
+    Effect.tapError((err) => Effect.logError(err))
   )
 
   yield* Effect.repeat(

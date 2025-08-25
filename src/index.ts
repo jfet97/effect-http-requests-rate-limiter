@@ -1,4 +1,4 @@
-import { HttpClient, type HttpClientError, type HttpClientRequest, HttpClientResponse } from "@effect/platform"
+import { HttpClient, type HttpClientError, HttpClientResponse } from "@effect/platform"
 import { Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
@@ -112,25 +112,53 @@ export function makeRetryPolicy(policy: RetryPolicy): RetryPolicy {
 }
 
 export interface Config {
-  /** HTTP client to use for making requests */
-  httpClient: HttpClient.HttpClient
   /** Schema for parsing rate limit headers from HTTP responses */
   readonly rateLimiterHeadersSchema: HeadersSchema
-  /** Retry policy to use when rate limit is exceeded (429 status) */
-  readonly retryPolicy?: RetryPolicy
   /** Effect rate limiter to control the number of concurrent outgoing requests */
   readonly effectRateLimiter?: RateLimiter.RateLimiter
   /** Maximum number of concurrent requests allowed */
   readonly maxConcurrentRequests?: number
 }
 
+/**
+ * Creates an HTTP client with rate limiting detection capabilities.
+ *
+ * @remarks
+ * For automatic HTTP client resolution from context, use `makeWithContext` instead.
+ *
+ * @param config Configuration object specifying rate limiter behavior.
+ * @param httpClient The underlying HTTP client to enhance.
+ * @returns An enhanced HTTP client with rate limiting.
+ */
 export const make = Effect.fn(
   "makeHttpRequestsRateLimiter"
 )(
-  function*(config: Config) {
-    const httpClient = pipe(
-      config.httpClient,
-      HttpClient.filterStatusOk
+  function*(httpClient: HttpClient.HttpClient, config: Config) {
+    const handleResponseError = Effect.fn("HttpRequestsRateLimiter.handleResponseError")(
+      function*(err: HttpClientError.ResponseError) {
+        const headers = yield* parseHeaders(err.response)
+        const { retryAfter } = headers
+        if (
+          err.response.status === 429 &&
+          retryAfter != null
+        ) {
+          const startedAt = Duration.millis(Date.now())
+
+          // Suggest to close the gate for the amount of time specified in the header
+          yield* Effect.all([
+            PubSub.publish(pubsub, { toWait: retryAfter, startedAt }),
+            Effect.logInfo(
+              LogMessages.suggestWait(
+                retryAfter,
+                new Date(Duration.toMillis(startedAt)),
+                "429"
+              )
+            )
+          ], { concurrency: 2 })
+        }
+        // Yield the original error, so that the retry policy can be applied
+        return yield* err
+      }
     )
 
     const parseHeaders = (res: HttpClientResponse.HttpClientResponse) =>
@@ -214,68 +242,64 @@ export const make = Effect.fn(
       Effect.withSpan("HttpRequestsRateLimiter.gate.controllerFiber")
     )
 
-    return {
-      limit: (req: HttpClientRequest.HttpClientRequest) =>
-        pipe(
-          // Wait for gate to be open before executing the request
-          Effect.zipRight(gate.withPermits(1)(Effect.void), httpClient.execute(req)),
-          concurrencyLimiter?.withPermits(1) ?? identity,
-          config.effectRateLimiter ?? identity,
-          Effect.andThen(
-            Effect.fn("HttpRequestsRateLimiter.limit.checkQuota")(function*(res) {
-              const headers = yield* parseHeaders(res)
-              const { quotaResetsAfter, quotaRemainingRequests } = headers
-              if (
-                quotaResetsAfter != null &&
-                typeof quotaRemainingRequests === "number" &&
-                quotaRemainingRequests === 0
-              ) {
-                // Suggest to close the gate for the amount of time specified in the header
-                const startedAt = Duration.millis(Date.now())
-                yield* Effect.all([
-                  PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
-                  Effect.logInfo(
-                    LogMessages.suggestWait(
-                      quotaResetsAfter,
-                      new Date(Duration.toMillis(startedAt)),
-                      "end_of_quota"
-                    )
+    const enhancedHttpClient = httpClient.pipe(
+      HttpClient.filterStatusOk,
+      HttpClient.mapRequestInputEffect(
+        Effect.fn("HttpRequestsRateLimiter.gateKeeping")(function*(req) {
+          return yield* Effect.zipRight(
+            gate.withPermits(1)(Effect.void),
+            Effect.succeed(req)
+          ).pipe(
+            concurrencyLimiter?.withPermits(1) ?? identity,
+            config.effectRateLimiter ?? identity
+          )
+        })
+      ),
+      HttpClient.transformResponse(
+        Effect.andThen(
+          Effect.fn("HttpRequestsRateLimiter.checkQuota")(function*(res) {
+            const headers = yield* parseHeaders(res)
+            const { quotaResetsAfter, quotaRemainingRequests } = headers
+            if (
+              quotaResetsAfter != null &&
+              typeof quotaRemainingRequests === "number" &&
+              quotaRemainingRequests === 0
+            ) {
+              // Suggest to close the gate for the amount of time specified in the header
+              const startedAt = Duration.millis(Date.now())
+              yield* Effect.all([
+                PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
+                Effect.logInfo(
+                  LogMessages.suggestWait(
+                    quotaResetsAfter,
+                    new Date(Duration.toMillis(startedAt)),
+                    "end_of_quota"
                   )
-                ], { concurrency: 2 })
-              }
-              return res
-            })
-          ),
-          Effect.catchTag(
-            "ResponseError",
-            Effect.fn("HttpRequestsRateLimiter.limit.handleResponseError")(function*(err) {
-              const headers = yield* parseHeaders(err.response)
-              const { retryAfter } = headers
-              if (
-                err.response.status === 429 &&
-                retryAfter != null
-              ) {
-                const startedAt = Duration.millis(Date.now())
-
-                // Suggest to close the gate for the amount of time specified in the header
-                yield* Effect.all([
-                  PubSub.publish(pubsub, { toWait: retryAfter, startedAt }),
-                  Effect.logInfo(
-                    LogMessages.suggestWait(
-                      retryAfter,
-                      new Date(Duration.toMillis(startedAt)),
-                      "429"
-                    )
-                  )
-                ], { concurrency: 2 })
-              }
-              // Yield the original error, so that the retry policy can be applied
-              return yield* err
-            })
-          ),
-          config.retryPolicy ?? identity,
-          Effect.withSpan("HttpRequestsRateLimiter.limit")
+                )
+              ], { concurrency: 2 })
+            }
+            return res
+          })
         )
-    }
+      ),
+      HttpClient.catchTag(
+        "ResponseError",
+        (x) => handleResponseError(x)
+      )
+    )
+
+    return enhancedHttpClient
   }
 )
+
+/**
+ * Creates a new instance using the provided configuration and an HTTP client from the context.
+ *
+ * @remarks
+ * To provide an HTTP client manually instead of using context, use `make` instead.
+ *
+ * @param config - The configuration object to initialize the instance.
+ * @returns An effect that yields the constructed instance with the given configuration and HTTP client.
+ */
+export const makeWithContext = (config: Config) =>
+  HttpClient.HttpClient.pipe(Effect.andThen((httpClient) => make(httpClient, config)))
