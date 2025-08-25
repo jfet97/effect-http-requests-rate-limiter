@@ -252,37 +252,35 @@ export const make = Effect.fn(
           )
         })
       ),
-      HttpClient.transform((resEffect) =>
+      HttpClient.transformResponse((resEffect) =>
         resEffect.pipe(
           concurrencyLimiter?.withPermits(1) ?? identity,
-          config.effectRateLimiter ?? identity
-        )
-      ),
-      HttpClient.transformResponse(
-        Effect.andThen(
-          Effect.fn("HttpRequestsRateLimiter.checkQuota")(function*(res) {
-            const headers = yield* parseHeaders(res)
-            const { quotaResetsAfter, quotaRemainingRequests } = headers
-            if (
-              quotaResetsAfter != null &&
-              typeof quotaRemainingRequests === "number" &&
-              quotaRemainingRequests === 0
-            ) {
-              // Suggest to close the gate for the amount of time specified in the header
-              const startedAt = Duration.millis(Date.now())
-              yield* Effect.all([
-                PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
-                Effect.logInfo(
-                  LogMessages.suggestWait(
-                    quotaResetsAfter,
-                    new Date(Duration.toMillis(startedAt)),
-                    "end_of_quota"
+          config.effectRateLimiter ?? identity,
+          Effect.andThen(
+            Effect.fn("HttpRequestsRateLimiter.checkQuota")(function*(res) {
+              const headers = yield* parseHeaders(res)
+              const { quotaResetsAfter, quotaRemainingRequests } = headers
+              if (
+                quotaResetsAfter != null &&
+                typeof quotaRemainingRequests === "number" &&
+                quotaRemainingRequests === 0
+              ) {
+                // Suggest to close the gate for the amount of time specified in the header
+                const startedAt = Duration.millis(Date.now())
+                yield* Effect.all([
+                  PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
+                  Effect.logInfo(
+                    LogMessages.suggestWait(
+                      quotaResetsAfter,
+                      new Date(Duration.toMillis(startedAt)),
+                      "end_of_quota"
+                    )
                   )
-                )
-              ], { concurrency: 2 })
-            }
-            return res
-          })
+                ], { concurrency: 2 })
+              }
+              return res
+            })
+          )
         )
       ),
       HttpClient.catchTag(
