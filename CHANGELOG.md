@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.3.1
+
+### Patch Changes
+
+- [`419aea2`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/419aea2dcd168c2db2095a48a885405e85edef88) Thanks [@jfet97](https://github.com/jfet97)! - better code, test quota handling
+
 ## 0.3.0
 
 ### Minor Changes
