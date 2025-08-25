@@ -1,5 +1,11 @@
 # effect-http-requests-rate-limiter
 
+## 0.3.0
+
+### Minor Changes
+
+- [#16](https://github.com/jfet97/effect-http-requests-rate-limiter/pull/16) [`dcb5ecb`](https://github.com/jfet97/effect-http-requests-rate-limiter/commit/dcb5ecb76bcbc58d7af5cc0c86759b1e6767fbb5) Thanks [@jfet97](https://github.com/jfet97)! - httpclient centric
+
 ## 0.2.2
 
 ### Patch Changes
