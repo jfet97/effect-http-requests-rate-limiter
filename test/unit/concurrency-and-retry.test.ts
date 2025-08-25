@@ -29,16 +29,10 @@ describe("Concurrency and Retry", () => {
         })
       )
 
-      const rateLimiter = (yield* HttpRequestsRateLimiter.make(mockClient, {
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         maxConcurrentRequests: 3,
         rateLimiterHeadersSchema: S.Struct({})
-      })).pipe(
-        HttpClient.retryTransient({
-          schedule: Schedule.exponential("100 millis"),
-          while: (err) => err._tag === "ResponseError" && err.response.status === 429,
-          times: 2
-        })
-      )
+      })
 
       // Launch 6 concurrent requests
       const requests = Array.from({ length: 6 }, () =>
@@ -81,16 +75,10 @@ describe("Concurrency and Retry", () => {
         interval: Duration.seconds(10)
       })
 
-      const rateLimiter = (yield* HttpRequestsRateLimiter.make(mockClient, {
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         effectRateLimiter,
         rateLimiterHeadersSchema: S.Struct({})
-      })).pipe(
-        HttpClient.retryTransient({
-          schedule: Schedule.exponential("100 millis"),
-          while: (err) => err._tag === "ResponseError" && err.response.status === 429,
-          times: 2
-        })
-      )
+      })
 
       // First two requests should succeed immediately
       const result1 = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
