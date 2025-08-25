@@ -25,13 +25,12 @@ describe("Gate Mechanism", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
       })
 
       // Request succeeds and processes quota headers
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
 
       const body = yield* result.json
@@ -57,13 +56,12 @@ describe("Gate Mechanism", () => {
         })
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema
       })
 
       // The request should fail with ResponseError after processing the gate delay
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com")).pipe(
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com")).pipe(
         Effect.either
       )
 
@@ -119,16 +117,15 @@ describe("Gate Mechanism", () => {
         })
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
       })
 
-      const res1 = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/one"))
+      const res1 = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com/one"))
       expect(res1.status).toBe(200)
 
       const start = yield* TestClock.currentTimeMillis
-      const fiber2 = yield* Effect.fork(rateLimiter.limit(HttpClientRequest.get("http://test.com/two")))
+      const fiber2 = yield* Effect.fork(rateLimiter.execute(HttpClientRequest.get("http://test.com/two")))
       // Advance full window then join
       yield* TestClock.adjust(Duration.seconds(30))
       const res2 = yield* Fiber.join(fiber2)
@@ -165,15 +162,14 @@ describe("Gate Mechanism", () => {
         })
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.rateLimitHit.config.rateLimiterHeadersSchema
       })
 
-      const first = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com/a")).pipe(Effect.either)
+      const first = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com/a")).pipe(Effect.either)
       expect(first._tag).toBe("Left")
 
-      const fiber2 = yield* Effect.fork(rateLimiter.limit(HttpClientRequest.get("http://test.com/c")))
+      const fiber2 = yield* Effect.fork(rateLimiter.execute(HttpClientRequest.get("http://test.com/c")))
       yield* TestClock.adjust(Duration.seconds(29))
       const poll = yield* Fiber.poll(fiber2)
       expect(poll._tag).toBe("None")

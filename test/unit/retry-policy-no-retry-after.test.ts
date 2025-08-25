@@ -35,21 +35,17 @@ describe("Retry Policy (no retry-after header)", () => {
         })
       )
 
-      const retryPolicy = HttpRequestsRateLimiter.makeRetryPolicy(
-        Effect.retry({
+      const limiter = (yield* HttpRequestsRateLimiter.make(mockClient, {
+        rateLimiterHeadersSchema: S.Struct({})
+      })).pipe(
+        HttpClient.retryTransient({
           schedule: Schedule.exponential("50 millis"),
           while: (err) => err._tag === "ResponseError" && err.response.status === 429,
           times: 2
         })
       )
 
-      const limiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
-        retryPolicy,
-        rateLimiterHeadersSchema: S.Struct({})
-      })
-
-      const fiber = yield* Effect.fork(limiter.limit(HttpClientRequest.get("http://test.com")))
+      const fiber = yield* Effect.fork(limiter.execute(HttpClientRequest.get("http://test.com")))
       // Advance enough simulated time for both retry delays (approx 50 + 100)
       yield* TestClock.adjust(Duration.millis(500))
       const res = yield* fiber

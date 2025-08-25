@@ -25,12 +25,11 @@ describe("Headers Parsing", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       })
 
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
     }))
 
@@ -52,13 +51,12 @@ describe("Headers Parsing", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.malformedHeaders.config.rateLimiterHeadersSchema
       })
 
       // Should succeed despite malformed headers (graceful fallback)
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
     }))
 
@@ -77,13 +75,12 @@ describe("Headers Parsing", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       })
 
       // Should succeed when headers are missing (no rate limiting applied)
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
     }))
 
@@ -106,12 +103,11 @@ describe("Headers Parsing", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema
       })
 
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://api.example.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://api.example.com"))
       expect(result.status).toBe(200)
 
       const body = yield* result.json
@@ -136,13 +132,12 @@ describe("Headers Parsing", () => {
         )
       )
 
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient: mockClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(mockClient, {
         rateLimiterHeadersSchema: TestScenarios.quotaExhausted.config.rateLimiterHeadersSchema
       })
 
       // First request should succeed but trigger gate closure
-      const result = yield* rateLimiter.limit(HttpClientRequest.get("http://test.com"))
+      const result = yield* rateLimiter.execute(HttpClientRequest.get("http://test.com"))
       expect(result.status).toBe(200)
 
       // This validates that the headers were parsed correctly and gate was triggered

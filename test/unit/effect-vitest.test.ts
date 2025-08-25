@@ -11,9 +11,9 @@ describe("Effect Vitest Integration", () => {
   it.scoped("should create rate limiter correctly", () =>
     Effect.gen(function*() {
       const httpClient = yield* HttpClient.HttpClient
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({ httpClient })
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(httpClient, {})
       expect(rateLimiter).toBeDefined()
-      expect(typeof rateLimiter.limit).toBe("function")
+      expect(typeof rateLimiter.execute).toBe("function")
     }).pipe(Effect.provide(NodeHttpClient.layerUndici)))
 
   it.effect("should handle TestClock correctly", () =>
@@ -30,13 +30,12 @@ describe("Effect Vitest Integration", () => {
   it.scoped("should create rate limiter with configuration", () =>
     Effect.gen(function*() {
       const httpClient = yield* HttpClient.HttpClient
-      const rateLimiter = yield* HttpRequestsRateLimiter.make({
-        httpClient,
+      const rateLimiter = yield* HttpRequestsRateLimiter.make(httpClient, {
         rateLimiterHeadersSchema: TestScenarios.normalOperation.config.rateLimiterHeadersSchema,
         maxConcurrentRequests: 5
       })
       expect(rateLimiter).toBeDefined()
-      expect(typeof rateLimiter.limit).toBe("function")
+      expect(typeof rateLimiter.execute).toBe("function")
     }).pipe(Effect.provide(NodeHttpClient.layerUndici)))
 
   it.effect("should handle Effect.sleep with TestClock", () =>

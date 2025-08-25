@@ -92,17 +92,32 @@ NodeRuntime.runMain(main.pipe(
 ))
 ```
 
+## How It Works
+
+This library **transforms** an existing `HttpClient` into a rate-limited version by wrapping it with intelligent request management. Both functions return a new `HttpClient` that you can use exactly like the original, but with built-in rate limiting.
+
+```ts
+// Input: Regular HttpClient → Output: Rate-limited HttpClient
+const httpClient = yield* HttpClient.HttpClient
+const rateLimitedClient = yield* HttpRequestsRateLimiter.make(httpClient, config)
+
+// Use it exactly like any HttpClient
+const response = yield* rateLimitedClient.execute(request)
+```
+
 ## API Overview
 
 The library provides two main functions for creating rate-limited HTTP clients:
 
 ```ts
 // Option 1: Automatic HTTP client resolution from context
-const rateLimiter = yield* HttpRequestsRateLimiter.makeWithContext(config)
+const rateLimitedClient = yield* HttpRequestsRateLimiter.makeWithContext(config)
 
 // Option 2: Manual HTTP client provision
-const rateLimiter = yield* HttpRequestsRateLimiter.make(httpClient, config)
+const rateLimitedClient = yield* HttpRequestsRateLimiter.make(httpClient, config)
 ```
+
+Both return an enhanced `HttpClient` with the same interface as the original.
 
 ### Configuration Options
 
@@ -218,12 +233,13 @@ Rule: end up with a `Duration` that represents "time to wait from now".
 
 Note: only `decode` matters for the limiter; `encode` is illustrative and not a round‑trip: time passes so exact reversibility is irrelevant here.
 
-## How It Works
+## Internal Mechanism
 
-1. Requests pass through the rate limiter gate (FIFO semaphore)
-2. Response headers parsed for rate limit info using configurable schema
-3. Gate closes on 429/quota exhaustion, reopens after delay
-4. Smart delays optimize concurrent request timing to avoid cascading waits
+1. **Request Gating**: All requests pass through a FIFO semaphore gate before reaching the underlying HttpClient
+2. **Header Analysis**: Response headers are parsed for rate limit info using your configurable schema
+3. **Adaptive Control**: Gate closes on 429/quota exhaustion, reopens after the specified delay
+4. **Smart Batching**: Multiple concurrent requests hitting limits share delays to avoid cascading waits
+5. **Transparent Interface**: The enhanced client maintains full HttpClient compatibility
 
 ## Important Notes
 
