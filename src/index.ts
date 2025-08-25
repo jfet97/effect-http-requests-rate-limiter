@@ -249,11 +249,14 @@ export const make = Effect.fn(
           return yield* Effect.zipRight(
             gate.withPermits(1)(Effect.void),
             Effect.succeed(req)
-          ).pipe(
-            concurrencyLimiter?.withPermits(1) ?? identity,
-            config.effectRateLimiter ?? identity
           )
         })
+      ),
+      HttpClient.transform((resEffect) =>
+        resEffect.pipe(
+          concurrencyLimiter?.withPermits(1) ?? identity,
+          config.effectRateLimiter ?? identity
+        )
       ),
       HttpClient.transformResponse(
         Effect.andThen(
