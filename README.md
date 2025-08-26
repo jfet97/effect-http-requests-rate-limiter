@@ -105,6 +105,15 @@ const rateLimitedClient = yield* HttpRequestsRateLimiter.make(httpClient, config
 const response = yield* rateLimitedClient.execute(request)
 ```
 
+## Multiple Domains
+
+**Important**: Each rate limiter instance applies limits to ALL requests passing through it, regardless of destination domain. For different APIs (GitHub, Stripe, etc.), create separate rate-limited clients with domain-specific configurations:
+
+```ts
+const githubClient = yield* HttpRequestsRateLimiter.make(httpClient, githubConfig)
+const stripeClient = yield* HttpRequestsRateLimiter.make(httpClient, stripeConfig)
+```
+
 ## API Overview
 
 The library provides two main functions for creating rate-limited HTTP clients:
