@@ -1,5 +1,5 @@
 import { HttpClient, type HttpClientError, HttpClientResponse } from "@effect/platform"
-import { Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, Schema as S } from "effect"
+import { Context, Duration, Effect, identity, pipe, PubSub, Queue, type RateLimiter, Schema as S } from "effect"
 import { LogMessages } from "./logs.js"
 
 /**
@@ -111,6 +111,66 @@ export function makeRetryPolicy(policy: RetryPolicy): RetryPolicy {
   return policy
 }
 
+/**
+ * Events that can be shared across rate limiter instances through persistency layer.
+ */
+export interface RateLimitEvent {
+  /** Type of rate limit event */
+  readonly type: "gate_close" | "gate_open" | "quota_exhausted" | "rate_limit_429"
+  /** Duration to wait (for gate_close and quota_exhausted events) */
+  readonly duration?: Duration.Duration
+  /** Timestamp when the event occurred */
+  readonly timestamp: Duration.Duration
+  /** Optional context about the event (e.g., which API endpoint) */
+  readonly context?: string
+}
+
+/**
+ * Abstract interface for sharing rate limit state across multiple instances.
+ *
+ * @remarks
+ * This interface allows rate limiter instances to communicate with each other
+ * across different environments (demo vs prod) or processes. Implementations
+ * can use Redis, databases, or other persistence mechanisms.
+ */
+export interface PersistencyLayer {
+  /**
+   * Publish a rate limit event to be shared with other instances.
+   */
+  readonly publishEvent: (event: RateLimitEvent) => Effect.Effect<void>
+
+  /**
+   * Subscribe to rate limit events from other instances.
+   * Returns an Effect that yields events as they arrive.
+   */
+  readonly subscribeToEvents: Effect.Effect<Queue.Queue<RateLimitEvent>>
+
+  /**
+   * Get the current shared quota state for a specific context.
+   * Returns remaining requests and reset time if available.
+   */
+  readonly getSharedQuota: (context?: string) => Effect.Effect<{
+    readonly remaining?: number
+    readonly resetsAt?: Duration.Duration
+  }>
+
+  /**
+   * Update the shared quota state for a specific context.
+   */
+  readonly updateSharedQuota: (
+    remaining: number,
+    resetsAt: Duration.Duration,
+    context?: string
+  ) => Effect.Effect<void>
+}
+
+/**
+ * Tag for PersistencyLayer service in Effect Context.
+ */
+export const PersistencyLayer = Context.GenericTag<PersistencyLayer>(
+  "@effect-http-requests-rate-limiter/PersistencyLayer"
+)
+
 export interface Config {
   /** Schema for parsing rate limit headers from HTTP responses */
   readonly rateLimiterHeadersSchema: HeadersSchema
@@ -118,6 +178,12 @@ export interface Config {
   readonly effectRateLimiter?: RateLimiter.RateLimiter
   /** Maximum number of concurrent requests allowed */
   readonly maxConcurrentRequests?: number
+  /**
+   * Optional persistency layer for sharing rate limit state across instances.
+   * When provided, allows communication between different rate limiter instances
+   * (e.g., demo vs prod environments) through the configured persistence mechanism.
+   */
+  readonly persistency?: PersistencyLayer
 }
 
 /**
@@ -146,7 +212,14 @@ export const make = Effect.fn(
 
           // Suggest to close the gate for the amount of time specified in the header
           yield* Effect.all([
-            PubSub.publish(pubsub, { toWait: retryAfter, startedAt }),
+            publishRateLimitEvent(
+              { toWait: retryAfter, startedAt },
+              {
+                type: "rate_limit_429",
+                duration: retryAfter,
+                timestamp: startedAt
+              }
+            ),
             Effect.logInfo(
               LogMessages.suggestWait(
                 retryAfter,
@@ -198,6 +271,22 @@ export const make = Effect.fn(
       pubsub: PubSub.unbounded<{ toWait: Duration.Duration; startedAt: Duration.Duration }>()
     }, { concurrency: 3 })
 
+    // Helper function to publish events both locally and to persistency layer
+    const publishRateLimitEvent = Effect.fn("HttpRequestsRateLimiter.publishRateLimitEvent")(
+      function*(
+        localEvent: { toWait: Duration.Duration; startedAt: Duration.Duration },
+        persistentEvent: RateLimitEvent
+      ) {
+        // Publish locally
+        yield* PubSub.publish(pubsub, localEvent)
+
+        // Publish to persistency layer if configured
+        if (config.persistency) {
+          yield* config.persistency.publishEvent(persistentEvent)
+        }
+      }
+    )
+
     // Gate controller: closes the gate when rate limits are hit (429 status) or quota exhausted (remaining = 0)
     yield* pipe(
       pubsub,
@@ -242,10 +331,75 @@ export const make = Effect.fn(
       Effect.withSpan("HttpRequestsRateLimiter.gate.controllerFiber")
     )
 
+    // If persistency is configured, also start a fiber to listen to external events
+    if (config.persistency) {
+      yield* pipe(
+        config.persistency.subscribeToEvents,
+        Effect.andThen((eventQueue) =>
+          pipe(
+            eventQueue,
+            Queue.take,
+            Effect.andThen((persistentEvent) => {
+              if (
+                persistentEvent.type === "gate_close" ||
+                persistentEvent.type === "quota_exhausted" ||
+                persistentEvent.type === "rate_limit_429"
+              ) {
+                const duration = persistentEvent.duration ?? Duration.zero
+                if (Duration.greaterThan(duration, Duration.zero)) {
+                  const localEvent = {
+                    toWait: duration,
+                    startedAt: persistentEvent.timestamp
+                  }
+                  return PubSub.publish(pubsub, localEvent).pipe(
+                    Effect.andThen(Effect.logInfo(
+                      `🌐 Received rate limit event from persistency layer: ${persistentEvent.type}`
+                    ))
+                  )
+                }
+              }
+              return Effect.void
+            }),
+            Effect.forever
+          )
+        ),
+        Effect.interruptible,
+        Effect.forkScoped,
+        Effect.withSpan("HttpRequestsRateLimiter.persistentEventListener")
+      )
+    }
+
     const enhancedHttpClient = httpClient.pipe(
       HttpClient.filterStatusOk,
       HttpClient.mapRequestInputEffect(
         Effect.fn("HttpRequestsRateLimiter.gateKeeping")(function*(req) {
+          // Check shared quota state before proceeding if persistency is configured
+          if (config.persistency) {
+            const sharedQuota = yield* config.persistency.getSharedQuota().pipe(
+              Effect.catchAll(() => Effect.succeed({ remaining: undefined, resetsAt: undefined }))
+            )
+
+            if (
+              typeof sharedQuota.remaining === "number" &&
+              sharedQuota.remaining === 0 &&
+              sharedQuota.resetsAt != null
+            ) {
+              const now = Duration.millis(Date.now())
+              if (Duration.lessThan(now, sharedQuota.resetsAt)) {
+                // Quota is still exhausted, close gate until reset time
+                const waitTime = Duration.subtract(sharedQuota.resetsAt, now)
+                yield* publishRateLimitEvent(
+                  { toWait: waitTime, startedAt: now },
+                  {
+                    type: "quota_exhausted",
+                    duration: waitTime,
+                    timestamp: now
+                  }
+                )
+              }
+            }
+          }
+
           return yield* Effect.zipRight(
             gate.withPermits(1)(Effect.void),
             Effect.succeed(req)
@@ -260,6 +414,23 @@ export const make = Effect.fn(
             Effect.fn("HttpRequestsRateLimiter.checkQuota")(function*(res) {
               const headers = yield* parseHeaders(res)
               const { quotaResetsAfter, quotaRemainingRequests } = headers
+
+              // Update shared quota state if persistency is configured and we have quota info
+              if (
+                config.persistency &&
+                quotaResetsAfter != null &&
+                typeof quotaRemainingRequests === "number"
+              ) {
+                const resetsAt = Duration.sum(Duration.millis(Date.now()), quotaResetsAfter)
+                yield* config.persistency.updateSharedQuota(
+                  quotaRemainingRequests,
+                  resetsAt
+                ).pipe(
+                  Effect.catchAll((error) => Effect.logWarning(`Failed to update shared quota: ${String(error)}`))
+                )
+              }
+
+              // Check if quota is exhausted and close gate if needed
               if (
                 quotaResetsAfter != null &&
                 typeof quotaRemainingRequests === "number" &&
@@ -268,7 +439,14 @@ export const make = Effect.fn(
                 // Suggest to close the gate for the amount of time specified in the header
                 const startedAt = Duration.millis(Date.now())
                 yield* Effect.all([
-                  PubSub.publish(pubsub, { toWait: quotaResetsAfter, startedAt }),
+                  publishRateLimitEvent(
+                    { toWait: quotaResetsAfter, startedAt },
+                    {
+                      type: "quota_exhausted",
+                      duration: quotaResetsAfter,
+                      timestamp: startedAt
+                    }
+                  ),
                   Effect.logInfo(
                     LogMessages.suggestWait(
                       quotaResetsAfter,

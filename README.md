@@ -129,6 +129,8 @@ interface Config {
   effectRateLimiter?: RateLimiter.RateLimiter
   /** Maximum number of concurrent requests allowed */
   maxConcurrentRequests?: number
+  /** Optional persistency layer for sharing rate limit state across instances */
+  persistency?: PersistencyLayer
 }
 ```
 
@@ -240,6 +242,58 @@ Note: only `decode` matters for the limiter; `encode` is illustrative and not a 
 3. **Adaptive Control**: Gate closes on 429/quota exhaustion, reopens after the specified delay
 4. **Smart Batching**: Multiple concurrent requests hitting limits share delays to avoid cascading waits
 5. **Transparent Interface**: The enhanced client maintains full HttpClient compatibility
+
+## Persistency Layer (Advanced)
+
+For advanced use cases, you can enable **persistent state sharing** across multiple rate limiter instances (e.g., different processes, demo vs production environments) using the optional `persistency` field.
+
+### PersistencyLayer Interface
+
+```ts
+interface PersistencyLayer {
+  /** Publish a rate limit event to be shared with other instances */
+  publishEvent: (event: RateLimitEvent) => Effect.Effect<void>
+  
+  /** Subscribe to rate limit events from other instances */
+  subscribeToEvents: Effect.Effect<Queue.Queue<RateLimitEvent>>
+  
+  /** Get the current shared quota state */
+  getSharedQuota: (context?: string) => Effect.Effect<{
+    remaining?: number
+    resetsAt?: Duration.Duration
+  }>
+  
+  /** Update the shared quota state */
+  updateSharedQuota: (
+    remaining: number,
+    resetsAt: Duration.Duration,
+    context?: string
+  ) => Effect.Effect<void>
+}
+```
+
+### Usage Example with Redis
+
+```ts
+// See example/redis-persistency.ts for full implementation
+const persistencyLayer = yield* makeRedisPersistencyLayer({
+  client: redisClient,
+  keyPrefix: "my-app-rate-limiter",
+  eventChannel: "rate-limit-events"
+})
+
+const rateLimiter = yield* HttpRequestsRateLimiter.makeWithContext({
+  rateLimiterHeadersSchema: RateLimitHeadersSchema,
+  persistency: persistencyLayer
+})
+```
+
+### Benefits
+
+- **Cross-Instance Coordination**: Multiple instances share rate limit state in real-time
+- **Proactive Rate Limiting**: Instances learn about rate limits from each other before hitting them
+- **Graceful Degradation**: If persistency fails, rate limiting continues locally
+- **Flexible Backend**: Implement with Redis, databases, message queues, or any persistence system
 
 ## Important Notes
 
